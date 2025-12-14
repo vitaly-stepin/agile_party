@@ -21,7 +21,7 @@ agile_party/
 ## Technology Stack
 
 ### Backend
-- **Language**: Go 1.21+
+- **Language**: Go 1.25+
 - **Framework**: Fiber (HTTP + WebSocket)
 - **Database**: PostgreSQL 16
 - **Architecture**: Hexagonal (Ports & Adapters)
@@ -41,7 +41,7 @@ agile_party/
 
 1. **Clone the repository**
    ```bash
-   git clone <repo-url>
+   git clone github.com/vitaly-stepin/agile_party
    cd agile_party
    ```
 
