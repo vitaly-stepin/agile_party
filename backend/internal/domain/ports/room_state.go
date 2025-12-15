@@ -1,7 +1,7 @@
 package ports
 
 import (
-	"github.com/vitaly-stepin/agile_party/backend/internal/domain/room"
+	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
 
 type LiveRoomState struct {
