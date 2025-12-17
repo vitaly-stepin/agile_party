@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/vitaly-stepin/agile_party/internal/application/dto"
 	"github.com/vitaly-stepin/agile_party/internal/domain/ports"
 	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
@@ -23,32 +24,32 @@ func NewUserService(roomRepo ports.RoomRepo, stateMgr ports.RoomStateManager) *U
 }
 
 // JoinRoom adds a user to a room
-func (s *UserService) JoinRoom(ctx context.Context, roomID, userID, userName string) error {
+func (s *UserService) JoinRoom(ctx context.Context, roomID, userID, userName string) (*dto.UserResponse, error) {
 	if roomID == "" {
-		return room.ErrInvalidRoomID
+		return nil, room.ErrInvalidRoomID
 	}
 
 	// Verify room exists in database
 	exists, err := s.roomRepo.Exists(ctx, roomID)
 	if err != nil {
-		return fmt.Errorf("failed to check room existence: %w", err)
+		return nil, fmt.Errorf("failed to check room existence: %w", err)
 	}
 	if !exists {
-		return room.ErrRoomNotFound
+		return nil, room.ErrRoomNotFound
 	}
 
 	// Create user entity
 	user, err := room.CreateUser(userID, userName)
 	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	// Add user to in-memory state
 	if err := s.stateMgr.AddUser(roomID, user); err != nil {
-		return fmt.Errorf("failed to add user to room: %w", err)
+		return nil, fmt.Errorf("failed to add user to room: %w", err)
 	}
 
-	return nil
+	return dto.FromDomainUser(user), nil
 }
 
 // LeaveRoom removes a user from a room
@@ -69,29 +70,29 @@ func (s *UserService) LeaveRoom(ctx context.Context, roomID, userID string) erro
 }
 
 // UpdateUserName updates a user's name in the room
-func (s *UserService) UpdateUserName(ctx context.Context, roomID, userID, newName string) error {
+func (s *UserService) UpdateUserName(ctx context.Context, roomID, userID, newName string) (*dto.UserResponse, error) {
 	if roomID == "" {
-		return room.ErrInvalidRoomID
+		return nil, room.ErrInvalidRoomID
 	}
 	if userID == "" {
-		return room.ErrInvalidUserID
+		return nil, room.ErrInvalidUserID
 	}
 
 	// Get current user
 	user, err := s.stateMgr.GetUser(roomID, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Update name
 	if err := user.UpdateName(newName); err != nil {
-		return fmt.Errorf("failed to update user name: %w", err)
+		return nil, fmt.Errorf("failed to update user name: %w", err)
 	}
 
 	// Update in memory
 	if err := s.stateMgr.UpdateUser(roomID, user); err != nil {
-		return fmt.Errorf("failed to update user in state: %w", err)
+		return nil, fmt.Errorf("failed to update user in state: %w", err)
 	}
 
-	return nil
+	return dto.FromDomainUser(user), nil
 }

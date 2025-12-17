@@ -4,7 +4,8 @@ import "github.com/vitaly-stepin/agile_party/internal/domain/room"
 
 // SubmitVoteRequest represents a vote submission request
 type SubmitVoteRequest struct {
-	Value string `json:"value"`
+	UserID string `json:"userId"`
+	Value  string `json:"value"`
 }
 
 // VoteResponse represents a single vote

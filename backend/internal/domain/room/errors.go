@@ -14,11 +14,12 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUserAlreadyExists  = errors.New("user already exists in room")
 
-	ErrInvalidVote        = errors.New("invalid vote value")
+	ErrInvalidVote         = errors.New("invalid vote value")
 	ErrVotingSystemUnknown = errors.New("unknown voting system")
-	ErrNoVotes            = errors.New("no votes to calculate")
-	ErrVotesNotRevealed   = errors.New("votes have not been revealed yet")
+	ErrNoVotes             = errors.New("no votes to calculate")
+	ErrVotesNotRevealed    = errors.New("votes have not been revealed yet")
+	ErrVotesAlreadyRevealed = errors.New("votes are already revealed")
 
-	ErrRoomAlreadyExists  = errors.New("room already exists")
-	ErrRoomEmpty          = errors.New("room has no users")
+	ErrRoomAlreadyExists = errors.New("room already exists")
+	ErrRoomEmpty         = errors.New("room has no users")
 )

@@ -73,13 +73,10 @@ func (s *RoomService) GetRoomState(ctx context.Context, roomID string) (*dto.Roo
 		return nil, room.ErrInvalidRoomID
 	}
 
-	// Check room exists in database
-	exists, err := s.roomRepo.Exists(ctx, roomID)
+	// Get room from database to get name
+	r, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check room existence: %w", err)
-	}
-	if !exists {
-		return nil, room.ErrRoomNotFound
+		return nil, err
 	}
 
 	// Get live state from memory
@@ -88,5 +85,8 @@ func (s *RoomService) GetRoomState(ctx context.Context, roomID string) (*dto.Roo
 		return nil, err
 	}
 
-	return dto.FromDomainRoomState(state), nil
+	resp := dto.FromDomainRoomState(state)
+	resp.RoomName = r.Name
+
+	return resp, nil
 }
