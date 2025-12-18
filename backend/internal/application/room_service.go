@@ -73,13 +73,17 @@ func (s *RoomService) GetRoomState(ctx context.Context, roomID string) (*dto.Roo
 		return nil, room.ErrInvalidRoomID
 	}
 
-	// Check room exists in database
-	exists, err := s.roomRepo.Exists(ctx, roomID)
+	// Get room metadata from database
+	r, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check room existence: %w", err)
+		return nil, err
 	}
-	if !exists {
-		return nil, room.ErrRoomNotFound
+
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return nil, fmt.Errorf("failed to initialize room state: %w", err)
+		}
 	}
 
 	// Get live state from memory
@@ -88,5 +92,39 @@ func (s *RoomService) GetRoomState(ctx context.Context, roomID string) (*dto.Roo
 		return nil, err
 	}
 
-	return dto.FromDomainRoomState(state), nil
+	// Convert to DTO and populate room name
+	response := dto.FromDomainRoomState(state)
+	response.RoomName = r.Name
+
+	return response, nil
+}
+
+// UpdateTaskDescription updates the task description for a room
+func (s *RoomService) UpdateTaskDescription(ctx context.Context, roomID, description string) error {
+	if roomID == "" {
+		return room.ErrInvalidRoomID
+	}
+
+	// Check room exists in database
+	exists, err := s.roomRepo.Exists(ctx, roomID)
+	if err != nil {
+		return fmt.Errorf("failed to check room existence: %w", err)
+	}
+	if !exists {
+		return room.ErrRoomNotFound
+	}
+
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return fmt.Errorf("failed to initialize room state: %w", err)
+		}
+	}
+
+	// Update task description in memory
+	if err := s.stateMgr.UpdateTaskDescription(roomID, description); err != nil {
+		return fmt.Errorf("failed to update task description: %w", err)
+	}
+
+	return nil
 }

@@ -5,10 +5,11 @@ import (
 )
 
 type LiveRoomState struct {
-	RoomID     string
-	Users      map[string]*room.User // userID -> User
-	Votes      map[string]string     // userID -> vote value
-	IsRevealed bool
+	RoomID          string
+	Users           map[string]*room.User // userID -> User
+	Votes           map[string]string     // userID -> vote value
+	IsRevealed      bool
+	TaskDescription string
 }
 
 type RoomStateManager interface {
@@ -26,4 +27,5 @@ type RoomStateManager interface {
 	SubmitVote(roomID, userID, voteValue string) error
 	RevealVotes(roomID string) error
 	ClearVotes(roomID string) error
+	UpdateTaskDescription(roomID, description string) error
 }

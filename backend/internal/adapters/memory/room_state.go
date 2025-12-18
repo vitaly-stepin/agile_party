@@ -11,11 +11,12 @@ import (
 
 // liveRoom holds the live state for a single room
 type liveRoom struct {
-	roomID     string
-	users      map[string]*room.User
-	votes      map[string]string
-	isRevealed bool
-	lastAccess time.Time
+	roomID          string
+	users           map[string]*room.User
+	votes           map[string]string
+	isRevealed      bool
+	taskDescription string
+	lastAccess      time.Time
 }
 
 // RoomStateManager manages in-memory state for all active rooms
@@ -54,11 +55,12 @@ func (m *RoomStateManager) CreateRoom(roomID string) error {
 	}
 
 	m.rooms[roomID] = &liveRoom{
-		roomID:     roomID,
-		users:      make(map[string]*room.User),
-		votes:      make(map[string]string),
-		isRevealed: false,
-		lastAccess: time.Now(),
+		roomID:          roomID,
+		users:           make(map[string]*room.User),
+		votes:           make(map[string]string),
+		isRevealed:      false,
+		taskDescription: "",
+		lastAccess:      time.Now(),
 	}
 
 	return nil
@@ -90,10 +92,11 @@ func (m *RoomStateManager) GetRoomState(roomID string) (*ports.LiveRoomState, er
 	}
 
 	return &ports.LiveRoomState{
-		RoomID:     r.roomID,
-		Users:      usersCopy,
-		Votes:      votesCopy,
-		IsRevealed: r.isRevealed,
+		RoomID:          r.roomID,
+		Users:           usersCopy,
+		Votes:           votesCopy,
+		IsRevealed:      r.isRevealed,
+		TaskDescription: r.taskDescription,
 	}, nil
 }
 
@@ -119,7 +122,7 @@ func (m *RoomStateManager) DeleteRoom(roomID string) error {
 	return nil
 }
 
-// AddUser adds a user to a room
+// AddUser adds a user to a room (or updates if already exists - for reconnections)
 func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -129,11 +132,8 @@ func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 		return fmt.Errorf("room not found: %s", roomID)
 	}
 
-	// Check for duplicate user ID
-	if _, userExists := r.users[user.ID]; userExists {
-		return fmt.Errorf("user already exists in room: %s", user.ID)
-	}
-
+	// Allow re-adding existing users (reconnection scenario)
+	// This handles cases where the WebSocket disconnected but the cleanup hasn't run yet
 	r.users[user.ID] = user
 	r.lastAccess = time.Now()
 
@@ -270,6 +270,22 @@ func (m *RoomStateManager) ClearVotes(roomID string) error {
 		user.IsVoted = false
 	}
 
+	r.lastAccess = time.Now()
+
+	return nil
+}
+
+// UpdateTaskDescription updates the task description for a room
+func (m *RoomStateManager) UpdateTaskDescription(roomID, description string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, exists := m.rooms[roomID]
+	if !exists {
+		return fmt.Errorf("room not found: %s", roomID)
+	}
+
+	r.taskDescription = description
 	r.lastAccess = time.Now()
 
 	return nil

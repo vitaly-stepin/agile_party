@@ -40,6 +40,13 @@ func (s *VotingService) SubmitVote(ctx context.Context, roomID, userID, voteValu
 		return err
 	}
 
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return fmt.Errorf("failed to initialize room state: %w", err)
+		}
+	}
+
 	// Validate vote value
 	_, err = room.CreateVote(voteValue, r.VotingSystem)
 	if err != nil {
@@ -64,6 +71,13 @@ func (s *VotingService) RevealVotes(ctx context.Context, roomID string) (*dto.Re
 	r, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return nil, fmt.Errorf("failed to initialize room state: %w", err)
+		}
 	}
 
 	// Reveal votes in state
@@ -110,6 +124,13 @@ func (s *VotingService) ClearVotes(ctx context.Context, roomID string) error {
 	}
 	if !exists {
 		return room.ErrRoomNotFound
+	}
+
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return fmt.Errorf("failed to initialize room state: %w", err)
+		}
 	}
 
 	// Clear votes in state

@@ -37,6 +37,13 @@ func (s *UserService) JoinRoom(ctx context.Context, roomID, userID, userName str
 		return room.ErrRoomNotFound
 	}
 
+	// Ensure room exists in memory (lazy initialization after restart)
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+			return fmt.Errorf("failed to initialize room state: %w", err)
+		}
+	}
+
 	// Create user entity
 	user, err := room.CreateUser(userID, userName)
 	if err != nil {

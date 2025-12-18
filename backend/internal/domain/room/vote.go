@@ -5,7 +5,8 @@ import "strconv"
 type VotingSystem string
 
 const (
-	DbsFibo VotingSystem = "dbs_fibo"
+	DbsFibo   VotingSystem = "dbs_fibo"
+	Fibonacci VotingSystem = "fibonacci"
 )
 
 type Vote struct {
@@ -21,7 +22,7 @@ func CreateVote(value string, system VotingSystem) (*Vote, error) {
 
 func ValidateVote(value string, system VotingSystem) error {
 	switch system {
-	case DbsFibo:
+	case DbsFibo, Fibonacci:
 		return ValidateDbsFiboVote(value)
 	default:
 		return ErrVotingSystemUnknown
