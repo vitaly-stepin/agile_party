@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import { Card, Button } from '../common';
 import { useRoom } from '../../context/RoomContext';
-import { useWebSocket } from '../../hooks/useWebSocket';
 import { VALID_VOTES } from '../../types';
-import type { VoteValue } from '../../types';
+import type { VoteValue, ClientEvent } from '../../types';
 import VoteCard from './VoteCard';
-import { useParams } from 'react-router-dom';
 
 interface VotePanelProps {
   onReveal: () => void;
+  sendEvent: (event: ClientEvent) => void;
 }
 
-export default function VotePanel({ onReveal }: VotePanelProps) {
-  const { roomId } = useParams<{ roomId: string }>();
+export default function VotePanel({ onReveal, sendEvent }: VotePanelProps) {
   const { currentUser, roomState } = useRoom();
-  const { sendEvent } = useWebSocket(roomId || '');
   const [selectedVote, setSelectedVote] = useState<VoteValue | null>(null);
 
   const handleVoteClick = (value: VoteValue) => {

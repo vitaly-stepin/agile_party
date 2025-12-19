@@ -40,7 +40,6 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
 
         case 'user_joined':
         case 'user_left':
-        case 'vote_submitted':
         case 'user_updated': {
           // Refresh room state from server
           console.log('User event received:', event.type);
