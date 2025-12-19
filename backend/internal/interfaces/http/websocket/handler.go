@@ -160,13 +160,16 @@ func (h *Handler) handleVote(ctx context.Context, client *Client, msg Message) e
 		return fmt.Errorf("failed to submit vote: %w", err)
 	}
 
-	// Broadcast vote submitted (without revealing value)
+	// Get updated room state
+	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
+	if err != nil {
+		return fmt.Errorf("failed to get room state: %w", err)
+	}
+
+	// Broadcast updated room state to all clients
 	h.hub.BroadcastToRoom(client.RoomID, Message{
-		Type: EventTypeVoteSubmitted,
-		Payload: VoteSubmittedPayload{
-			UserID:   client.UserID,
-			HasVoted: true,
-		},
+		Type:    EventTypeRoomState,
+		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
 
 	return nil
@@ -223,10 +226,16 @@ func (h *Handler) handleClear(ctx context.Context, client *Client) error {
 		return fmt.Errorf("failed to clear votes: %w", err)
 	}
 
-	// Broadcast votes cleared
+	// Get updated room state to sync user voting status
+	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
+	if err != nil {
+		return fmt.Errorf("failed to get room state: %w", err)
+	}
+
+	// Broadcast updated room state (includes reset user voting status)
 	h.hub.BroadcastToRoom(client.RoomID, Message{
-		Type:    EventTypeVotesCleared,
-		Payload: VotesClearedPayload{},
+		Type:    EventTypeRoomState,
+		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
 
 	return nil

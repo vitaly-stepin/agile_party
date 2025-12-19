@@ -177,7 +177,7 @@ export default function Room() {
             {roomState?.isRevealed ? (
               <ResultsDisplay onClear={handleClear} />
             ) : (
-              <VotePanel onReveal={handleReveal} />
+              <VotePanel onReveal={handleReveal} sendEvent={sendEvent} />
             )}
           </div>
         </div>
