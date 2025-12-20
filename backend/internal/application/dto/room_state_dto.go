@@ -7,12 +7,12 @@ import (
 
 // RoomStateResponse represents the complete live state of a room
 type RoomStateResponse struct {
-	RoomID          string         `json:"room_id"`
-	RoomName        string         `json:"room_name"`
+	RoomID          string         `json:"roomId"`
+	RoomName        string         `json:"roomName"`
 	Users           []UserResponse `json:"users"`
 	Votes           []VoteResponse `json:"votes"`
-	IsRevealed      bool           `json:"is_revealed"`
-	TaskDescription string         `json:"task_description"`
+	IsRevealed      bool           `json:"isRevealed"`
+	TaskDescription string         `json:"taskDescription"`
 	Average         *float64       `json:"average,omitempty"`
 }
 

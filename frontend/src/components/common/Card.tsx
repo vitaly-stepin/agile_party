@@ -15,9 +15,9 @@ export const Card: React.FC<CardProps> = ({
   const baseStyles = 'rounded-lg';
 
   const variantStyles = {
-    default: 'bg-white border border-gray-200',
-    outlined: 'bg-white border-2 border-gray-300',
-    elevated: 'bg-white shadow-lg',
+    default: 'bg-white border border-slate-200',
+    outlined: 'bg-white border border-slate-300',
+    elevated: 'bg-white shadow-xl shadow-slate-200/50',
   };
 
   const paddingStyles = {

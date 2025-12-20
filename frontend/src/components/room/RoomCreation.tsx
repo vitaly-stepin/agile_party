@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input } from '../common';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRoom } from '../../context/RoomContext';
 
 export default function RoomCreation() {
@@ -26,41 +29,56 @@ export default function RoomCreation() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Room Name"
-        type="text"
-        value={roomName}
-        onChange={(e) => setRoomName(e.target.value)}
-        placeholder="Sprint Planning #42"
-        disabled={isLoading}
-        required
-      />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="room-name">Room Name</Label>
+        <Input
+          id="room-name"
+          type="text"
+          value={roomName}
+          onChange={(e) => setRoomName(e.target.value)}
+          placeholder="Sprint Planning #42"
+          disabled={isLoading}
+          required
+        />
+      </div>
 
-      <Input
-        label="Your Nickname"
-        type="text"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        placeholder="John Doe"
-        disabled={isLoading}
-        required
-        helperText="This is how others will see you in the room"
-      />
+      <div className="space-y-2">
+        <Label htmlFor="nickname">Your Nickname</Label>
+        <Input
+          id="nickname"
+          type="text"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder="John Doe"
+          disabled={isLoading}
+          required
+        />
+        <p className="text-sm text-slate-500">
+          This is how others will see you in the room
+        </p>
+      </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
         </div>
       )}
 
       <Button
         type="submit"
-        variant="primary"
-        fullWidth
+        className="w-full"
+        size="lg"
         disabled={isLoading || !roomName.trim() || !nickname.trim()}
       >
-        {isLoading ? 'Creating...' : 'Create Room'}
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          'Create Room'
+        )}
       </Button>
     </form>
   );

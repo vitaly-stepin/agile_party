@@ -132,6 +132,12 @@ func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 		return fmt.Errorf("room not found: %s", roomID)
 	}
 
+	// Check if user previously voted (reconnection scenario)
+	// If they did, preserve their voted status
+	if _, hasVote := r.votes[user.ID]; hasVote {
+		user.IsVoted = true
+	}
+
 	// Allow re-adding existing users (reconnection scenario)
 	// This handles cases where the WebSocket disconnected but the cleanup hasn't run yet
 	r.users[user.ID] = user
@@ -141,6 +147,8 @@ func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 }
 
 // RemoveUser removes a user from a room
+// NOTE: Votes are preserved to handle temporary disconnections.
+// Votes are only cleared when explicitly requested via ClearVotes or when room is deleted
 func (m *RoomStateManager) RemoveUser(roomID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -155,7 +163,9 @@ func (m *RoomStateManager) RemoveUser(roomID, userID string) error {
 	}
 
 	delete(r.users, userID)
-	delete(r.votes, userID) // Also remove their vote
+	// NOTE: Vote is intentionally NOT deleted here
+	// This preserves votes during temporary disconnections (e.g., page refresh, network issues)
+	// Votes are cleared only through explicit ClearVotes() or room deletion
 	r.lastAccess = time.Now()
 
 	return nil

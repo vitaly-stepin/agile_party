@@ -5,10 +5,10 @@ import "github.com/vitaly-stepin/agile_party/internal/domain/room"
 // UserResponse represents a user in the room
 type UserResponse struct {
 	ID       string `json:"id"`
-	UserID   string `json:"user_id"`   // Duplicate for WebSocket compatibility
+	UserID   string `json:"userId"`   // Duplicate for WebSocket compatibility
 	Name     string `json:"name"`
-	IsVoted  bool   `json:"is_voted"`
-	IsOnline bool   `json:"is_online"` // Always true for users in state
+	IsVoted  bool   `json:"isVoted"`
+	IsOnline bool   `json:"isOnline"` // Always true for users in state
 }
 
 // FromDomainUser converts a domain user to a DTO
