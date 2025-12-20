@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Room, User, Vote, RoomState, CreateRoomRequest } from '../types';
 import { api } from '../services/api';
@@ -22,6 +22,7 @@ interface RoomContextState {
   leaveRoom: () => Promise<void>;
   setRoomState: (state: RoomState) => void;
   updateUsers: (users: User[]) => void;
+  updateUserVoteStatus: (userId: string, hasVoted: boolean) => void;
   updateVotes: (votes: Vote[]) => void;
   setRevealed: (revealed: boolean, average?: number | null) => void;
   clearError: () => void;
@@ -146,6 +147,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     });
   }, []);
 
+  const updateUserVoteStatus = useCallback((userId: string, hasVoted: boolean) => {
+    setRoomStateInternal((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        users: prev.users.map(user =>
+          user.id === userId
+            ? { ...user, isVoted: hasVoted }
+            : user
+        ),
+      };
+    });
+  }, []);
+
   const updateVotes = useCallback((votes: Vote[]) => {
     setRoomStateInternal((prev) => {
       if (!prev) return null;
@@ -167,7 +182,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     });
   }, []);
 
-  const value: RoomContextState = {
+  const value: RoomContextState = useMemo(() => ({
     room,
     roomState,
     isLoading,
@@ -179,10 +194,27 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     leaveRoom,
     setRoomState,
     updateUsers,
+    updateUserVoteStatus,
     updateVotes,
     setRevealed,
     clearError,
-  };
+  }), [
+    room,
+    roomState,
+    isLoading,
+    error,
+    currentUserId,
+    currentUser,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    setRoomState,
+    updateUsers,
+    updateUserVoteStatus,
+    updateVotes,
+    setRevealed,
+    clearError,
+  ]);
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 };

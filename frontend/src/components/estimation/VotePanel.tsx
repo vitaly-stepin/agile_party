@@ -15,6 +15,7 @@ export default function VotePanel({ onReveal, sendEvent }: VotePanelProps) {
   const [selectedVote, setSelectedVote] = useState<VoteValue | null>(null);
 
   const handleVoteClick = (value: VoteValue) => {
+    console.log('[VotePanel] Submitting vote:', value, 'User ID:', currentUser?.id);
     setSelectedVote(value);
     sendEvent({
       type: 'vote',
@@ -30,6 +31,13 @@ export default function VotePanel({ onReveal, sendEvent }: VotePanelProps) {
 
   const allUsersVoted = roomState?.users.every((u) => u.isVoted) || false;
   const hasUsers = (roomState?.users.length || 0) > 0;
+
+  // Debug logging
+  console.log('[VotePanel] Current user:', currentUser);
+  console.log('[VotePanel] Room state users:', roomState?.users);
+  console.log('[VotePanel] Current user voted:', currentUserVoted);
+  console.log('[VotePanel] All users voted:', allUsersVoted);
+  console.log('[VotePanel] Selected vote:', selectedVote);
 
   return (
     <div className="space-y-6">

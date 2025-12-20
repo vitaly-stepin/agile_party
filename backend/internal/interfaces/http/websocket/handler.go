@@ -51,6 +51,8 @@ func (h *Handler) HandleConnection(c *fiber.Ctx) error {
 	userID := c.Query("userId")
 	nickname := c.Query("nickname")
 
+	log.Printf("[DEBUG] WebSocket connection - roomID: '%s', userID: '%s', path: '%s'", roomID, userID, c.Path())
+
 	if roomID == "" || userID == "" || nickname == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "roomId, userId, and nickname are required",
@@ -84,7 +86,9 @@ func (h *Handler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname
 	}
 
 	// Create client and register with hub
+	log.Printf("[DEBUG] Creating client - roomID: '%s', userID: '%s'", roomID, userID)
 	client := NewClient(conn, h.hub, roomID, userID, h)
+	log.Printf("[DEBUG] Client created - client.RoomID: '%s', client.UserID: '%s'", client.RoomID, client.UserID)
 	h.hub.register <- client
 
 	// Send initial room state to the new client

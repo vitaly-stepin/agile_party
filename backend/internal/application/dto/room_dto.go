@@ -25,8 +25,8 @@ type CreateRoomResponse struct {
 // UpdateRoomRequest represents a request to update room settings
 type UpdateRoomRequest struct {
 	Name         *string `json:"name,omitempty"`
-	VotingSystem *string `json:"voting_system,omitempty"`
-	AutoReveal   *bool   `json:"auto_reveal,omitempty"`
+	VotingSystem *string `json:"votingSystem,omitempty"`
+	AutoReveal   *bool   `json:"autoReveal,omitempty"`
 }
 
 // RoomResponse represents a room with its metadata

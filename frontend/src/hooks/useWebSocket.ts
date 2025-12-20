@@ -13,19 +13,33 @@ interface UseWebSocketReturn {
 }
 
 export const useWebSocket = (roomId: string): UseWebSocketReturn => {
-  const { currentUserId, currentUser, setRoomState, updateVotes, setRevealed } = useRoom();
+  const { currentUserId, currentUser, setRoomState, updateVotes, setRevealed, updateUserVoteStatus } = useRoom();
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const wsClient = useRef<WebSocketClient | null>(null);
+
+  // Use refs to store latest callback values without triggering re-renders
+  const setRoomStateRef = useRef(setRoomState);
+  const updateVotesRef = useRef(updateVotes);
+  const setRevealedRef = useRef(setRevealed);
+  const updateUserVoteStatusRef = useRef(updateUserVoteStatus);
+
+  // Keep refs in sync with latest values
+  useEffect(() => {
+    setRoomStateRef.current = setRoomState;
+    updateVotesRef.current = updateVotes;
+    setRevealedRef.current = setRevealed;
+    updateUserVoteStatusRef.current = updateUserVoteStatus;
+  }, [setRoomState, updateVotes, setRevealed, updateUserVoteStatus]);
 
   const fetchRoomState = useCallback(async () => {
     if (!roomId) return;
     try {
       const state = await api.getRoomState(roomId);
-      setRoomState(state);
+      setRoomStateRef.current(state);
     } catch (error) {
       console.error('Failed to fetch room state:', error);
     }
-  }, [roomId, setRoomState]);
+  }, [roomId]);
 
   const handleMessage = useCallback(
     (event: ServerEvent) => {
@@ -34,7 +48,7 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
       switch (event.type) {
         case 'room_state': {
           // Initial room state sync
-          setRoomState(event.payload);
+          setRoomStateRef.current(event.payload);
           break;
         }
 
@@ -47,18 +61,31 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
           break;
         }
 
+        case 'vote_submitted': {
+          // Update voting status immediately from event payload
+          const { userId, hasVoted } = event.payload;
+          console.log(`Vote submitted by user ${userId}, hasVoted: ${hasVoted}`);
+
+          // Update user's vote status immediately without API call
+          updateUserVoteStatusRef.current(userId, hasVoted);
+          break;
+        }
+
         case 'votes_revealed': {
           // Show votes and average
           const { votes, average } = event.payload;
-          updateVotes(votes);
-          setRevealed(true, average);
+          console.log('Votes revealed:', { votes, average });
+          updateVotesRef.current(votes);
+          setRevealedRef.current(true, average);
           break;
         }
 
         case 'votes_cleared': {
-          // Clear votes for new round
-          updateVotes([]);
-          setRevealed(false);
+          // Clear votes for new round and fetch updated user states
+          updateVotesRef.current([]);
+          setRevealedRef.current(false);
+          // Fetch room state to get updated user voting status (all reset to false)
+          fetchRoomState();
           break;
         }
 
@@ -73,7 +100,7 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
           console.warn('Unknown WebSocket event type:', event.type);
       }
     },
-    [setRoomState, updateVotes, setRevealed, fetchRoomState]
+    [fetchRoomState]
   );
 
   const handleStateChange = useCallback((state: ConnectionState) => {
@@ -107,7 +134,9 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
         wsClient.current = null;
       }
     };
-  }, [roomId, currentUserId, currentUser, handleMessage, handleStateChange]);
+    // Only reconnect when roomId, userId, or nickname changes - not on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, currentUserId, currentUser?.name]);
 
   const sendEvent = useCallback((event: ClientEvent) => {
     if (wsClient.current && connectionState === 'connected') {

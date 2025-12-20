@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input } from '../common';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function RoomJoin() {
   const navigate = useNavigate();
@@ -19,31 +21,41 @@ export default function RoomJoin() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Room ID"
-        type="text"
-        value={roomId}
-        onChange={(e) => setRoomId(e.target.value)}
-        placeholder="abc12345"
-        required
-        helperText="Get this from the person who created the room"
-      />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="room-id">Room ID</Label>
+        <Input
+          id="room-id"
+          type="text"
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+          placeholder="abc12345"
+          required
+        />
+        <p className="text-sm text-slate-500">
+          Get this from the person who created the room
+        </p>
+      </div>
 
-      <Input
-        label="Your Nickname"
-        type="text"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        placeholder="John Doe"
-        required
-        helperText="This is how others will see you in the room"
-      />
+      <div className="space-y-2">
+        <Label htmlFor="join-nickname">Your Nickname</Label>
+        <Input
+          id="join-nickname"
+          type="text"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          placeholder="John Doe"
+          required
+        />
+        <p className="text-sm text-slate-500">
+          This is how others will see you in the room
+        </p>
+      </div>
 
       <Button
         type="submit"
-        variant="primary"
-        fullWidth
+        className="w-full"
+        size="lg"
         disabled={!roomId.trim() || !nickname.trim()}
       >
         Join Room
