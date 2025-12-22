@@ -319,7 +319,7 @@ func (h *Handler) sendRoomState(client *Client) error {
 }
 
 // convertRoomStateToPayload converts DTO to WebSocket payload
-func (h *Handler) convertRoomStateToPayload(state *dto.RoomStateResponse) RoomStatePayload {
+func (h *Handler) convertRoomStateToPayload(state *dto.RoomStateResp) RoomStatePayload {
 	users := make([]UserPayload, len(state.Users))
 	for i, user := range state.Users {
 		users[i] = UserPayload{

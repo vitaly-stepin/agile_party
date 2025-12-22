@@ -13,7 +13,7 @@ type LiveRoomState struct {
 }
 
 type RoomStateManager interface {
-	CreateRoom(roomID string) error
+	NewRoom(roomID string) error
 	GetRoomState(roomID string) (*LiveRoomState, error)
 	RoomExists(roomID string) bool
 	DeleteRoom(roomID string) error

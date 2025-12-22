@@ -8,7 +8,7 @@ import (
 	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
 
-func TestRoomStateManager_CreateRoom(t *testing.T) {
+func TestRoomStateManager_NewRoom(t *testing.T) {
 	manager := NewRoomStateManager(CleanupConfig{
 		CleanupInterval: 1 * time.Hour,
 		RoomTTL:         1 * time.Hour,
@@ -16,8 +16,8 @@ func TestRoomStateManager_CreateRoom(t *testing.T) {
 
 	roomID := "testroom1"
 
-	// Test CreateRoom
-	err := manager.CreateRoom(roomID)
+	// Test NewRoom
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestRoomStateManager_CreateRoom(t *testing.T) {
 	}
 
 	// Test duplicate creation
-	err = manager.CreateRoom(roomID)
+	err = manager.NewRoom(roomID)
 	if err == nil {
 		t.Error("Expected error when creating duplicate room")
 	}
@@ -41,7 +41,7 @@ func TestRoomStateManager_GetRoomState(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestRoomStateManager_DeleteRoom(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestRoomStateManager_AddUser(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestRoomStateManager_RemoveUser(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestRoomStateManager_GetUser(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestRoomStateManager_UpdateUser(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestRoomStateManager_SubmitVote(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestRoomStateManager_RevealVotes(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -352,7 +352,7 @@ func TestRoomStateManager_ClearVotes(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -412,7 +412,7 @@ func TestRoomStateManager_ConcurrentAccess(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -426,11 +426,11 @@ func TestRoomStateManager_ConcurrentAccess(t *testing.T) {
 		go func(userNum int) {
 			defer wg.Done()
 
-			userID := string(rune('A' + (userNum % 26))) + string(rune('0' + (userNum / 26)))
+			userID := string(rune('A'+(userNum%26))) + string(rune('0'+(userNum/26)))
 			user, err := room.CreateUser(userID, "User"+userID)
-	if err != nil {
-		t.Fatalf("Failed to create user: %v", err)
-	}
+			if err != nil {
+				t.Fatalf("Failed to create user: %v", err)
+			}
 			err = manager.AddUser(roomID, user)
 			if err != nil {
 				t.Errorf("Failed to add user %s: %v", userID, err)
@@ -457,7 +457,7 @@ func TestRoomStateManager_Cleanup(t *testing.T) {
 	})
 
 	roomID := "testroom1"
-	err := manager.CreateRoom(roomID)
+	err := manager.NewRoom(roomID)
 	if err != nil {
 		t.Fatalf("Failed to create room: %v", err)
 	}
@@ -496,15 +496,15 @@ func TestRoomStateManager_Stats(t *testing.T) {
 	// Create multiple rooms with users
 	for i := 0; i < 3; i++ {
 		roomID := "room" + string(rune('1'+i))
-		err := manager.CreateRoom(roomID)
+		err := manager.NewRoom(roomID)
 		if err != nil {
 			t.Fatalf("Failed to create room: %v", err)
 		}
 
 		user, err := room.CreateUser("user"+string(rune('1'+i)), "User "+string(rune('1'+i)))
-	if err != nil {
-		t.Fatalf("Failed to create user: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Failed to create user: %v", err)
+		}
 		err = manager.AddUser(roomID, user)
 		if err != nil {
 			t.Fatalf("Failed to add user: %v", err)

@@ -2,26 +2,22 @@ package dto
 
 import "github.com/vitaly-stepin/agile_party/internal/domain/room"
 
-// SubmitVoteRequest represents a vote submission request
-type SubmitVoteRequest struct {
+type SubmitVoteReq struct {
 	UserID string `json:"userId"`
 	Value  string `json:"value"`
 }
 
-// VoteResponse represents a single vote
-type VoteResponse struct {
+type VoteResp struct {
 	UserID   string `json:"userId"`
 	UserName string `json:"userName"`
 	Value    string `json:"value"`
 }
 
-// RevealVotesResponse represents the result of revealing votes
-type RevealVotesResponse struct {
+type RevealVotesResp struct {
 	Votes   map[string]string `json:"votes"`   // userID -> vote value
 	Average *float64          `json:"average"` // nil if no numeric votes
 }
 
-// FromDomainVotes converts domain votes to DTO
 func FromDomainVotes(votes map[string]*room.Vote) map[string]string {
 	if votes == nil {
 		return nil

@@ -8,7 +8,7 @@ import { useRoom } from '../../context/RoomContext';
 
 export default function RoomCreation() {
   const navigate = useNavigate();
-  const { createRoom, error, isLoading } = useRoom();
+  const { newRoom, error, isLoading } = useRoom();
   const [roomName, setRoomName] = useState('');
   const [nickname, setNickname] = useState('');
 
@@ -20,7 +20,7 @@ export default function RoomCreation() {
     }
 
     try {
-      const roomId = await createRoom(roomName.trim(), nickname.trim());
+      const roomId = await newRoom(roomName.trim(), nickname.trim());
       navigate(`/room/${roomId}`);
     } catch (err) {
       // Error is handled by context

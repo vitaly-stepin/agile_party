@@ -9,7 +9,6 @@ import (
 	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
 
-// liveRoom holds the live state for a single room
 type liveRoom struct {
 	roomID          string
 	users           map[string]*room.User
@@ -19,34 +18,29 @@ type liveRoom struct {
 	lastAccess      time.Time
 }
 
-// RoomStateManager manages in-memory state for all active rooms
 type RoomStateManager struct {
 	mu    sync.RWMutex
-	rooms map[string]*liveRoom
+	rooms map[string]*liveRoom // rename to activeRooms + update on first user join
 	cfg   CleanupConfig
 }
 
-// CleanupConfig holds configuration for background cleanup
 type CleanupConfig struct {
 	CleanupInterval time.Duration
 	RoomTTL         time.Duration
 }
 
-// NewRoomStateManager creates a new in-memory room state manager
 func NewRoomStateManager(cfg CleanupConfig) *RoomStateManager {
 	manager := &RoomStateManager{
 		rooms: make(map[string]*liveRoom),
 		cfg:   cfg,
 	}
 
-	// Start background cleanup goroutine
 	go manager.backgroundCleanup()
 
 	return manager
 }
 
-// CreateRoom creates a new live room in memory
-func (m *RoomStateManager) CreateRoom(roomID string) error {
+func (m *RoomStateManager) NewRoom(roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -66,7 +60,6 @@ func (m *RoomStateManager) CreateRoom(roomID string) error {
 	return nil
 }
 
-// GetRoomState retrieves the current state of a room
 func (m *RoomStateManager) GetRoomState(roomID string) (*ports.LiveRoomState, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -76,10 +69,9 @@ func (m *RoomStateManager) GetRoomState(roomID string) (*ports.LiveRoomState, er
 		return nil, fmt.Errorf("room not found: %s", roomID)
 	}
 
-	// Update last access
 	r.lastAccess = time.Now()
 
-	// Deep copy to prevent external mutations
+	// Deep copy to prevent external mutations, check later if we have a better alternatives in GO
 	usersCopy := make(map[string]*room.User, len(r.users))
 	for id, user := range r.users {
 		userCopy := *user
@@ -100,7 +92,6 @@ func (m *RoomStateManager) GetRoomState(roomID string) (*ports.LiveRoomState, er
 	}, nil
 }
 
-// RoomExists checks if a room exists in memory
 func (m *RoomStateManager) RoomExists(roomID string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -109,7 +100,6 @@ func (m *RoomStateManager) RoomExists(roomID string) bool {
 	return exists
 }
 
-// DeleteRoom removes a room from memory
 func (m *RoomStateManager) DeleteRoom(roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -122,7 +112,6 @@ func (m *RoomStateManager) DeleteRoom(roomID string) error {
 	return nil
 }
 
-// AddUser adds a user to a room (or updates if already exists - for reconnections)
 func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -132,23 +121,21 @@ func (m *RoomStateManager) AddUser(roomID string, user *room.User) error {
 		return fmt.Errorf("room not found: %s", roomID)
 	}
 
-	// Check if user previously voted (reconnection scenario)
-	// If they did, preserve their voted status
+	if _, userExists := r.users[user.ID]; userExists {
+		return fmt.Errorf("user already exists in room: %s", user.ID)
+	}
+
+	// preserve user vote status if they have already voted (reconnection scenario)
 	if _, hasVote := r.votes[user.ID]; hasVote {
 		user.IsVoted = true
 	}
 
-	// Allow re-adding existing users (reconnection scenario)
-	// This handles cases where the WebSocket disconnected but the cleanup hasn't run yet
 	r.users[user.ID] = user
 	r.lastAccess = time.Now()
 
 	return nil
 }
 
-// RemoveUser removes a user from a room
-// NOTE: Votes are preserved to handle temporary disconnections.
-// Votes are only cleared when explicitly requested via ClearVotes or when room is deleted
 func (m *RoomStateManager) RemoveUser(roomID, userID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -163,15 +150,12 @@ func (m *RoomStateManager) RemoveUser(roomID, userID string) error {
 	}
 
 	delete(r.users, userID)
-	// NOTE: Vote is intentionally NOT deleted here
-	// This preserves votes during temporary disconnections (e.g., page refresh, network issues)
-	// Votes are cleared only through explicit ClearVotes() or room deletion
+	delete(r.votes, userID)
 	r.lastAccess = time.Now()
 
 	return nil
 }
 
-// GetUser retrieves a user from a room
 func (m *RoomStateManager) GetUser(roomID, userID string) (*room.User, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -191,7 +175,6 @@ func (m *RoomStateManager) GetUser(roomID, userID string) (*room.User, error) {
 	return &userCopy, nil
 }
 
-// UpdateUser updates a user's information in a room
 func (m *RoomStateManager) UpdateUser(roomID string, user *room.User) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -211,9 +194,8 @@ func (m *RoomStateManager) UpdateUser(roomID string, user *room.User) error {
 	return nil
 }
 
-// GetUserCount returns the number of users in a room
 func (m *RoomStateManager) GetUserCount(roomID string) (int, error) {
-	m.mu.RLock()
+	m.mu.RLock() // consider later if this lock is necessary
 	defer m.mu.RUnlock()
 
 	r, exists := m.rooms[roomID]
@@ -224,7 +206,6 @@ func (m *RoomStateManager) GetUserCount(roomID string) (int, error) {
 	return len(r.users), nil
 }
 
-// SubmitVote records a user's vote
 func (m *RoomStateManager) SubmitVote(roomID, userID, voteValue string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -237,7 +218,7 @@ func (m *RoomStateManager) SubmitVote(roomID, userID, voteValue string) error {
 	user, userExists := r.users[userID]
 	if !userExists {
 		return fmt.Errorf("user not found in room: %s", userID)
-	}
+	} // can we refactor this to avoid code duplication?
 
 	r.votes[userID] = voteValue
 	user.IsVoted = true
@@ -246,7 +227,6 @@ func (m *RoomStateManager) SubmitVote(roomID, userID, voteValue string) error {
 	return nil
 }
 
-// RevealVotes reveals all votes in a room
 func (m *RoomStateManager) RevealVotes(roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -262,7 +242,6 @@ func (m *RoomStateManager) RevealVotes(roomID string) error {
 	return nil
 }
 
-// ClearVotes clears all votes in a room and resets reveal status
 func (m *RoomStateManager) ClearVotes(roomID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -275,7 +254,6 @@ func (m *RoomStateManager) ClearVotes(roomID string) error {
 	r.votes = make(map[string]string)
 	r.isRevealed = false
 
-	// Reset all users' voting status
 	for _, user := range r.users {
 		user.IsVoted = false
 	}
@@ -285,7 +263,6 @@ func (m *RoomStateManager) ClearVotes(roomID string) error {
 	return nil
 }
 
-// UpdateTaskDescription updates the task description for a room
 func (m *RoomStateManager) UpdateTaskDescription(roomID, description string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -311,23 +288,19 @@ func (m *RoomStateManager) backgroundCleanup() {
 	}
 }
 
-// cleanup removes empty rooms or rooms inactive beyond TTL
+// cleanup removes empty rooms that are inactive beyond TTL
 func (m *RoomStateManager) cleanup() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	now := time.Now()
 	for roomID, r := range m.rooms {
-		// Remove room if:
-		// 1. No users connected
-		// 2. Last access beyond TTL
 		if len(r.users) == 0 && now.Sub(r.lastAccess) > m.cfg.RoomTTL {
 			delete(m.rooms, roomID)
 		}
 	}
 }
 
-// Stats returns statistics about the in-memory state
 func (m *RoomStateManager) Stats() map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

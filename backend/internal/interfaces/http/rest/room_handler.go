@@ -26,9 +26,9 @@ func NewRoomHandler(
 	}
 }
 
-// CreateRoom handles POST /api/rooms
-func (h *RoomHandler) CreateRoom(c *fiber.Ctx) error {
-	var req dto.CreateRoomRequest
+// NewRoom handles POST /api/rooms
+func (h *RoomHandler) NewRoom(c *fiber.Ctx) error {
+	var req dto.NewRoomReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -40,7 +40,7 @@ func (h *RoomHandler) CreateRoom(c *fiber.Ctx) error {
 		req.VotingSystem = "fibonacci"
 	}
 
-	response, err := h.roomService.CreateRoom(c.Context(), &req)
+	response, err := h.roomService.NewRoom(c.Context(), &req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -192,7 +192,7 @@ func (h *RoomHandler) SubmitVote(c *fiber.Ctx) error {
 		})
 	}
 
-	var req dto.SubmitVoteRequest
+	var req dto.SubmitVoteReq
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",

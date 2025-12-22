@@ -48,7 +48,7 @@ func (m *mockRoomRepo) Exists(ctx context.Context, id string) (bool, error) {
 
 // Mock RoomStateManager
 type mockStateManager struct {
-	createRoomFunc   func(roomID string) error
+	newRoomFunc      func(roomID string) error
 	getRoomStateFunc func(roomID string) (*ports.LiveRoomState, error)
 	roomExistsFunc   func(roomID string) bool
 	deleteRoomFunc   func(roomID string) error
@@ -57,14 +57,15 @@ type mockStateManager struct {
 	getUserFunc      func(roomID, userID string) (*room.User, error)
 	updateUserFunc   func(roomID string, user *room.User) error
 	getUserCountFunc func(roomID string) (int, error)
-	submitVoteFunc   func(roomID, userID, voteValue string) error
-	revealVotesFunc  func(roomID string) error
-	clearVotesFunc   func(roomID string) error
+	submitVoteFunc          func(roomID, userID, voteValue string) error
+	revealVotesFunc         func(roomID string) error
+	clearVotesFunc          func(roomID string) error
+	updateTaskDescFunc      func(roomID, description string) error
 }
 
-func (m *mockStateManager) CreateRoom(roomID string) error {
-	if m.createRoomFunc != nil {
-		return m.createRoomFunc(roomID)
+func (m *mockStateManager) NewRoom(roomID string) error {
+	if m.newRoomFunc != nil {
+		return m.newRoomFunc(roomID)
 	}
 	return nil
 }
@@ -151,20 +152,27 @@ func (m *mockStateManager) ClearVotes(roomID string) error {
 	return nil
 }
 
+func (m *mockStateManager) UpdateTaskDescription(roomID, description string) error {
+	if m.updateTaskDescFunc != nil {
+		return m.updateTaskDescFunc(roomID, description)
+	}
+	return nil
+}
+
 // Tests for RoomService
 
-func TestRoomService_CreateRoom_Success(t *testing.T) {
+func TestRoomService_NewRoom_Success(t *testing.T) {
 	repo := &mockRoomRepo{}
 	stateMgr := &mockStateManager{}
 	service := NewRoomService(repo, stateMgr)
 
-	req := &dto.CreateRoomRequest{
+	req := &dto.NewRoomReq{
 		Name:         "Sprint Planning",
 		VotingSystem: "dbs_fibo",
 		AutoReveal:   false,
 	}
 
-	resp, err := service.CreateRoom(context.Background(), req)
+	resp, err := service.NewRoom(context.Background(), req)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -183,37 +191,37 @@ func TestRoomService_CreateRoom_Success(t *testing.T) {
 	}
 }
 
-func TestRoomService_CreateRoom_NilRequest(t *testing.T) {
+func TestRoomService_NewRoom_NilRequest(t *testing.T) {
 	repo := &mockRoomRepo{}
 	stateMgr := &mockStateManager{}
 	service := NewRoomService(repo, stateMgr)
 
-	_, err := service.CreateRoom(context.Background(), nil)
+	_, err := service.NewRoom(context.Background(), nil)
 
 	if err == nil {
 		t.Fatal("expected error for nil request, got nil")
 	}
 }
 
-func TestRoomService_CreateRoom_InvalidName(t *testing.T) {
+func TestRoomService_NewRoom_InvalidName(t *testing.T) {
 	repo := &mockRoomRepo{}
 	stateMgr := &mockStateManager{}
 	service := NewRoomService(repo, stateMgr)
 
-	req := &dto.CreateRoomRequest{
+	req := &dto.NewRoomReq{
 		Name:         "",
 		VotingSystem: "dbs_fibo",
 		AutoReveal:   false,
 	}
 
-	_, err := service.CreateRoom(context.Background(), req)
+	_, err := service.NewRoom(context.Background(), req)
 
 	if err == nil {
 		t.Fatal("expected error for empty name, got nil")
 	}
 }
 
-func TestRoomService_CreateRoom_RepoError(t *testing.T) {
+func TestRoomService_NewRoom_RepoError(t *testing.T) {
 	repo := &mockRoomRepo{
 		createFunc: func(ctx context.Context, r *room.Room) error {
 			return errors.New("database error")
@@ -222,35 +230,35 @@ func TestRoomService_CreateRoom_RepoError(t *testing.T) {
 	stateMgr := &mockStateManager{}
 	service := NewRoomService(repo, stateMgr)
 
-	req := &dto.CreateRoomRequest{
+	req := &dto.NewRoomReq{
 		Name:         "Sprint Planning",
 		VotingSystem: "dbs_fibo",
 		AutoReveal:   false,
 	}
 
-	_, err := service.CreateRoom(context.Background(), req)
+	_, err := service.NewRoom(context.Background(), req)
 
 	if err == nil {
 		t.Fatal("expected error from repo, got nil")
 	}
 }
 
-func TestRoomService_CreateRoom_StateMgrError(t *testing.T) {
+func TestRoomService_NewRoom_StateMgrError(t *testing.T) {
 	repo := &mockRoomRepo{}
 	stateMgr := &mockStateManager{
-		createRoomFunc: func(roomID string) error {
+		newRoomFunc: func(roomID string) error {
 			return errors.New("state manager error")
 		},
 	}
 	service := NewRoomService(repo, stateMgr)
 
-	req := &dto.CreateRoomRequest{
+	req := &dto.NewRoomReq{
 		Name:         "Sprint Planning",
 		VotingSystem: "dbs_fibo",
 		AutoReveal:   false,
 	}
 
-	_, err := service.CreateRoom(context.Background(), req)
+	_, err := service.NewRoom(context.Background(), req)
 
 	if err == nil {
 		t.Fatal("expected error from state manager, got nil")
@@ -258,7 +266,7 @@ func TestRoomService_CreateRoom_StateMgrError(t *testing.T) {
 }
 
 func TestRoomService_GetRoom_Success(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -317,11 +325,21 @@ func TestRoomService_GetRoomState_Success(t *testing.T) {
 	testUser, _ := room.CreateUser("user1", "Alice")
 
 	repo := &mockRoomRepo{
-		existsFunc: func(ctx context.Context, id string) (bool, error) {
-			return true, nil
+		getFunc: func(ctx context.Context, id string) (*room.Room, error) {
+			return &room.Room{
+				ID:   roomID,
+				Name: "Test Room",
+				RoomSettings: room.RoomSettings{
+					VotingSystem: "dbs_fibo",
+					AutoReveal:   false,
+				},
+			}, nil
 		},
 	}
 	stateMgr := &mockStateManager{
+		roomExistsFunc: func(rID string) bool {
+			return true
+		},
 		getRoomStateFunc: func(rID string) (*ports.LiveRoomState, error) {
 			return &ports.LiveRoomState{
 				RoomID: roomID,

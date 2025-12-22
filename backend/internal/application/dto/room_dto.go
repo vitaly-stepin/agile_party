@@ -6,15 +6,13 @@ import (
 	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
 
-// CreateRoomRequest represents a request to create a new room
-type CreateRoomRequest struct {
+type NewRoomReq struct {
 	Name         string `json:"name"`
 	VotingSystem string `json:"voting_system"`
 	AutoReveal   bool   `json:"auto_reveal"`
 }
 
-// CreateRoomResponse represents the response after creating a room
-type CreateRoomResponse struct {
+type NewRoomResp struct {
 	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	VotingSystem string    `json:"voting_system"`
@@ -22,15 +20,13 @@ type CreateRoomResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// UpdateRoomRequest represents a request to update room settings
-type UpdateRoomRequest struct {
+type UpdateRoomReq struct {
 	Name         *string `json:"name,omitempty"`
 	VotingSystem *string `json:"votingSystem,omitempty"`
 	AutoReveal   *bool   `json:"autoReveal,omitempty"`
 }
 
-// RoomResponse represents a room with its metadata
-type RoomResponse struct {
+type RoomResp struct {
 	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	VotingSystem string    `json:"voting_system"`
@@ -39,12 +35,11 @@ type RoomResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// FromDomainRoom converts a domain room to a DTO
-func FromDomainRoom(r *room.Room) *RoomResponse {
+func FromDomainRoom(r *room.Room) *RoomResp { // consider more self explaining naming
 	if r == nil {
 		return nil
 	}
-	return &RoomResponse{
+	return &RoomResp{
 		ID:           r.ID,
 		Name:         r.Name,
 		VotingSystem: string(r.VotingSystem),
@@ -54,12 +49,11 @@ func FromDomainRoom(r *room.Room) *RoomResponse {
 	}
 }
 
-// FromDomainRoomForCreate converts a domain room to a create response DTO
-func FromDomainRoomForCreate(r *room.Room) *CreateRoomResponse {
+func FromDomainRoomForCreate(r *room.Room) *NewRoomResp { // consider more self explaining naming
 	if r == nil {
 		return nil
 	}
-	return &CreateRoomResponse{
+	return &NewRoomResp{
 		ID:           r.ID,
 		Name:         r.Name,
 		VotingSystem: string(r.VotingSystem),

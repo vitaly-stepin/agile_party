@@ -50,7 +50,7 @@ func TestRoomRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a test room
-	rm, err := room.CreateRoom("Test Room", room.RoomSettings{
+	rm, err := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -84,7 +84,7 @@ func TestRoomRepository_GetByID(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a test room
-	originalRoom, err := room.CreateRoom("Test Room", room.RoomSettings{
+	originalRoom, err := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   true,
 	})
@@ -145,7 +145,7 @@ func TestRoomRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a test room
-	rm, err := room.CreateRoom("Original Name", room.RoomSettings{
+	rm, err := room.NewRoom("Original Name", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -191,7 +191,7 @@ func TestRoomRepository_Update_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a room entity but don't persist it
-	rm, err := room.CreateRoom("Test Room", room.RoomSettings{
+	rm, err := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -217,7 +217,7 @@ func TestRoomRepository_Exists(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a test room
-	rm, err := room.CreateRoom("Test Room", room.RoomSettings{
+	rm, err := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -260,7 +260,7 @@ func TestRoomRepository_CreateDuplicate(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a test room
-	rm, err := room.CreateRoom("Test Room", room.RoomSettings{
+	rm, err := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})

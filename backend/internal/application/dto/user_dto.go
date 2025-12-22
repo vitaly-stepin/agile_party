@@ -2,21 +2,19 @@ package dto
 
 import "github.com/vitaly-stepin/agile_party/internal/domain/room"
 
-// UserResponse represents a user in the room
-type UserResponse struct {
+type UserResp struct {
 	ID       string `json:"id"`
-	UserID   string `json:"userId"`   // Duplicate for WebSocket compatibility
+	UserID   string `json:"userId"` // Duplicate for WebSocket compatibility, consider refactoring later
 	Name     string `json:"name"`
 	IsVoted  bool   `json:"isVoted"`
-	IsOnline bool   `json:"isOnline"` // Always true for users in state
+	IsOnline bool   `json:"isOnline"`
 }
 
-// FromDomainUser converts a domain user to a DTO
-func FromDomainUser(u *room.User) *UserResponse {
+func FromDomainUser(u *room.User) *UserResp {
 	if u == nil {
 		return nil
 	}
-	return &UserResponse{
+	return &UserResp{
 		ID:       u.ID,
 		UserID:   u.ID,
 		Name:     u.Name,
@@ -25,13 +23,12 @@ func FromDomainUser(u *room.User) *UserResponse {
 	}
 }
 
-// FromDomainUsers converts multiple domain users to DTOs
-func FromDomainUsers(users map[string]*room.User) map[string]*UserResponse {
+func FromDomainUsers(users map[string]*room.User) map[string]*UserResp {
 	if users == nil {
 		return nil
 	}
 
-	result := make(map[string]*UserResponse, len(users))
+	result := make(map[string]*UserResp, len(users))
 	for id, user := range users {
 		result[id] = FromDomainUser(user)
 	}
