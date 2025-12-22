@@ -1,4 +1,4 @@
-import type { CreateRoomRequest, CreateRoomResponse, Room, RoomState } from '../types';
+import type { NewRoomReq, NewRoomResp, Room, RoomState } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -35,7 +35,7 @@ export const api = {
   /**
    * Create a new room
    */
-  async createRoom(request: CreateRoomRequest): Promise<CreateRoomResponse> {
+  async newRoom(request: NewRoomReq): Promise<NewRoomResp> {
     const response = await fetch(`${API_BASE_URL}/api/rooms`, {
       method: 'POST',
       headers: {
@@ -44,7 +44,7 @@ export const api = {
       body: JSON.stringify(request),
     });
 
-    return handleResponse<CreateRoomResponse>(response);
+    return handleResponse<NewRoomResp>(response);
   },
 
   /**

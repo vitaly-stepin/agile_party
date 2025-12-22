@@ -13,14 +13,14 @@ type RoomSettings struct {
 }
 
 type Room struct {
-	ID       string
-	Name     string
+	ID   string
+	Name string
 	RoomSettings
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func CreateRoom(name string, settings RoomSettings) (*Room, error) {
+func NewRoom(name string, settings RoomSettings) (*Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
 	}

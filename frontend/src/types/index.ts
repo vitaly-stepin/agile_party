@@ -13,14 +13,14 @@ export interface RoomSettings {
   auto_reveal: boolean;
 }
 
-export interface CreateRoomRequest {
+export interface NewRoomReq {
   name: string;
   voting_system?: string;
   auto_reveal?: boolean;
   settings?: RoomSettings;
 }
 
-export interface CreateRoomResponse {
+export interface NewRoomResp {
   id: string;
   name: string;
   voting_system: string;

@@ -9,23 +9,20 @@ import (
 	"github.com/vitaly-stepin/agile_party/internal/domain/room"
 )
 
-// VotingService handles voting operations within rooms
 type VotingService struct {
-	roomRepo        ports.RoomRepo
-	stateMgr        ports.RoomStateManager
-	estimationSvc   *room.EstimationService
+	roomRepo      ports.RoomRepo
+	stateMgr      ports.RoomStateManager
+	estimationSvc *room.EstimationService
 }
 
-// NewVotingService creates a new VotingService
 func NewVotingService(roomRepo ports.RoomRepo, stateMgr ports.RoomStateManager) *VotingService {
 	return &VotingService{
-		roomRepo:       roomRepo,
-		stateMgr:       stateMgr,
-		estimationSvc:  room.NewEstimationService(),
+		roomRepo:      roomRepo,
+		stateMgr:      stateMgr,
+		estimationSvc: room.NewEstimationService(),
 	}
 }
 
-// SubmitVote submits a vote for a user in a room
 func (s *VotingService) SubmitVote(ctx context.Context, roomID, userID, voteValue string) error {
 	if roomID == "" {
 		return room.ErrInvalidRoomID
@@ -34,7 +31,6 @@ func (s *VotingService) SubmitVote(ctx context.Context, roomID, userID, voteValu
 		return room.ErrInvalidUserID
 	}
 
-	// Get room to check voting system
 	r, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {
 		return err
@@ -42,18 +38,16 @@ func (s *VotingService) SubmitVote(ctx context.Context, roomID, userID, voteValu
 
 	// Ensure room exists in memory (lazy initialization after restart)
 	if !s.stateMgr.RoomExists(roomID) {
-		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+		if err := s.stateMgr.NewRoom(roomID); err != nil {
 			return fmt.Errorf("failed to initialize room state: %w", err)
 		}
 	}
 
-	// Validate vote value
 	_, err = room.CreateVote(voteValue, r.VotingSystem)
 	if err != nil {
 		return fmt.Errorf("invalid vote: %w", err)
 	}
 
-	// Submit vote to in-memory state (validation passed, now store the string value)
 	if err := s.stateMgr.SubmitVote(roomID, userID, voteValue); err != nil {
 		return fmt.Errorf("failed to submit vote: %w", err)
 	}
@@ -61,13 +55,11 @@ func (s *VotingService) SubmitVote(ctx context.Context, roomID, userID, voteValu
 	return nil
 }
 
-// RevealVotes reveals all votes in a room and calculates the average
-func (s *VotingService) RevealVotes(ctx context.Context, roomID string) (*dto.RevealVotesResponse, error) {
+func (s *VotingService) RevealVotes(ctx context.Context, roomID string) (*dto.RevealVotesResp, error) {
 	if roomID == "" {
 		return nil, room.ErrInvalidRoomID
 	}
 
-	// Get room to check voting system
 	r, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -75,28 +67,24 @@ func (s *VotingService) RevealVotes(ctx context.Context, roomID string) (*dto.Re
 
 	// Ensure room exists in memory (lazy initialization after restart)
 	if !s.stateMgr.RoomExists(roomID) {
-		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+		if err := s.stateMgr.NewRoom(roomID); err != nil {
 			return nil, fmt.Errorf("failed to initialize room state: %w", err)
 		}
 	}
 
-	// Reveal votes in state
 	if err := s.stateMgr.RevealVotes(roomID); err != nil {
 		return nil, fmt.Errorf("failed to reveal votes: %w", err)
 	}
 
-	// Get current state to access votes
 	state, err := s.stateMgr.GetRoomState(roomID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate average
-	response := &dto.RevealVotesResponse{
+	response := &dto.RevealVotesResp{
 		Votes: state.Votes, // Already map[string]string
 	}
 
-	// Only calculate average if there are votes
 	if len(state.Votes) > 0 {
 		avg, err := s.estimationSvc.CalculateAverage(state.Votes, r.VotingSystem)
 		// Only set average if no error and average is not 0 when all votes are non-numeric
@@ -128,7 +116,7 @@ func (s *VotingService) ClearVotes(ctx context.Context, roomID string) error {
 
 	// Ensure room exists in memory (lazy initialization after restart)
 	if !s.stateMgr.RoomExists(roomID) {
-		if err := s.stateMgr.CreateRoom(roomID); err != nil {
+		if err := s.stateMgr.NewRoom(roomID); err != nil {
 			return fmt.Errorf("failed to initialize room state: %w", err)
 		}
 	}

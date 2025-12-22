@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import type { Room, User, Vote, RoomState, CreateRoomRequest } from '../types';
+import type { Room, User, Vote, RoomState, NewRoomReq } from '../types';
 import { api } from '../services/api';
 
 interface RoomContextState {
@@ -17,7 +17,7 @@ interface RoomContextState {
   currentUser: User | null;
 
   // Actions
-  createRoom: (roomName: string, nickname: string) => Promise<string>;
+  newRoom: (roomName: string, nickname: string) => Promise<string>;
   joinRoom: (roomId: string, nickname: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
   setRoomState: (state: RoomState) => void;
@@ -46,20 +46,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     setError(null);
   }, []);
 
-  const createRoom = useCallback(async (roomName: string, nickname: string): Promise<string> => {
+  const newRoom = useCallback(async (roomName: string, nickname: string): Promise<string> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const request: CreateRoomRequest = {
+      const request: NewRoomReq = {
         name: roomName,
         voting_system: 'fibonacci',
         auto_reveal: false,
       };
 
-      const response = await api.createRoom(request);
+      const response = await api.newRoom(request);
 
-      // Convert CreateRoomResponse to Room format
+      // Convert NewRoomResponse to Room format
       const newRoom: Room = {
         id: response.id,
         name: response.name,
@@ -189,7 +189,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     error,
     currentUserId,
     currentUser,
-    createRoom,
+    newRoom,
     joinRoom,
     leaveRoom,
     setRoomState,
@@ -205,7 +205,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     error,
     currentUserId,
     currentUser,
-    createRoom,
+    newRoom,
     joinRoom,
     leaveRoom,
     setRoomState,

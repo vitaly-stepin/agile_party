@@ -10,7 +10,7 @@ import (
 )
 
 func TestVotingService_SubmitVote_Success(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -71,7 +71,7 @@ func TestVotingService_SubmitVote_RoomNotFound(t *testing.T) {
 }
 
 func TestVotingService_SubmitVote_InvalidVote(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -92,7 +92,7 @@ func TestVotingService_SubmitVote_InvalidVote(t *testing.T) {
 }
 
 func TestVotingService_SubmitVote_StateMgrError(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -117,7 +117,7 @@ func TestVotingService_SubmitVote_StateMgrError(t *testing.T) {
 }
 
 func TestVotingService_RevealVotes_Success(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -191,7 +191,7 @@ func TestVotingService_RevealVotes_RoomNotFound(t *testing.T) {
 }
 
 func TestVotingService_RevealVotes_NoVotes(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -224,7 +224,7 @@ func TestVotingService_RevealVotes_NoVotes(t *testing.T) {
 }
 
 func TestVotingService_RevealVotes_OnlyQuestionMarks(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})
@@ -260,7 +260,7 @@ func TestVotingService_RevealVotes_OnlyQuestionMarks(t *testing.T) {
 }
 
 func TestVotingService_RevealVotes_StateMgrError(t *testing.T) {
-	testRoom, _ := room.CreateRoom("Test Room", room.RoomSettings{
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
 		VotingSystem: room.DbsFibo,
 		AutoReveal:   false,
 	})

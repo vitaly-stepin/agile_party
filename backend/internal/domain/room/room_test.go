@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCreateRoom(t *testing.T) {
+func TestNewRoom(t *testing.T) {
 	tests := []struct {
 		name          string
 		roomName      string
@@ -79,7 +79,7 @@ func TestCreateRoom(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			room, err := CreateRoom(tt.roomName, tt.settings)
+			room, err := NewRoom(tt.roomName, tt.settings)
 
 			if tt.expectedError {
 				if err == nil {
@@ -174,7 +174,7 @@ func TestValidateRoomName(t *testing.T) {
 }
 
 func TestRoom_UpdateName(t *testing.T) {
-	room, err := CreateRoom("Original Name", RoomSettings{
+	room, err := NewRoom("Original Name", RoomSettings{
 		VotingSystem: DbsFibo,
 		AutoReveal:   false,
 	})
@@ -226,7 +226,7 @@ func TestRoom_UpdateName(t *testing.T) {
 }
 
 func TestRoom_UpdateSettings(t *testing.T) {
-	room, err := CreateRoom("Test Room", RoomSettings{
+	room, err := NewRoom("Test Room", RoomSettings{
 		VotingSystem: DbsFibo,
 		AutoReveal:   false,
 	})

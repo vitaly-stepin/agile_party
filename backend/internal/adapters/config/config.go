@@ -7,14 +7,12 @@ import (
 	"time"
 )
 
-// Config holds all application configuration
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Memory   MemoryConfig
 }
 
-// ServerConfig holds server-related configuration
 type ServerConfig struct {
 	Port            string
 	ReadTimeout     time.Duration
@@ -22,7 +20,6 @@ type ServerConfig struct {
 	ShutdownTimeout time.Duration
 }
 
-// DatabaseConfig holds database connection configuration
 type DatabaseConfig struct {
 	Host            string
 	Port            string
@@ -35,13 +32,11 @@ type DatabaseConfig struct {
 	ConnMaxLifetime time.Duration
 }
 
-// MemoryConfig holds in-memory state manager configuration
 type MemoryConfig struct {
 	CleanupInterval time.Duration
 	RoomTTL         time.Duration
 }
 
-// Load reads configuration from environment variables with sensible defaults
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
@@ -67,7 +62,6 @@ func Load() (*Config, error) {
 		},
 	}
 
-	// Validate required fields
 	if cfg.Database.Password == "" {
 		return nil, fmt.Errorf("DB_PASSWORD is required")
 	}
@@ -75,15 +69,12 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// ConnectionString returns PostgreSQL connection string
 func (c *DatabaseConfig) ConnectionString() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode,
 	)
 }
-
-// Helper functions
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
