@@ -21,34 +21,20 @@ const (
 	maxMessageSize = 8192
 )
 
-// Client represents a WebSocket client connection
 type Client struct {
-	// WebSocket connection
-	conn *websocket.Conn
-
-	// Hub managing this client
-	hub *Hub
-
-	// Room ID this client belongs to
-	RoomID string
-
-	// User ID of this client
-	UserID string
-
-	// Buffered channel of outbound messages
-	send chan []byte
-
-	// Message handler
+	conn    *websocket.Conn
+	hub     *WsHub // Hub managing this client
+	RoomID  string
+	UserID  string
+	send    chan []byte
 	handler MessageHandler
 }
 
-// MessageHandler processes incoming WebSocket messages
 type MessageHandler interface {
-	HandleMessage(client *Client, message Message) error
+	HandleMessage(client *Client, message WsMessage) error
 }
 
-// NewClient creates a new WebSocket client
-func NewClient(conn *websocket.Conn, hub *Hub, roomID, userID string, handler MessageHandler) *Client {
+func NewClient(conn *websocket.Conn, hub *WsHub, roomID, userID string, handler MessageHandler) *Client {
 	return &Client{
 		conn:    conn,
 		hub:     hub,
@@ -59,7 +45,6 @@ func NewClient(conn *websocket.Conn, hub *Hub, roomID, userID string, handler Me
 	}
 }
 
-// readPump pumps messages from the WebSocket connection to the hub
 func (c *Client) readPump() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -91,7 +76,7 @@ func (c *Client) readPump() {
 	})
 
 	for {
-		var msg Message
+		var msg WsMessage
 		err := c.conn.ReadJSON(&msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -100,17 +85,14 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Handle the message
 		if err := c.handler.HandleMessage(c, msg); err != nil {
 			log.Printf("Error handling message from user %s in room %s: %v", c.UserID, c.RoomID, err)
 
-			// Send error back to client
 			c.SendError(err.Error(), "HANDLER_ERROR")
 		}
 	}
 }
 
-// writePump pumps messages from the hub to the WebSocket connection
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -134,6 +116,7 @@ func (c *Client) writePump() {
 			if c.conn == nil {
 				return
 			}
+			// Set write timeout
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub closed the channel
@@ -147,7 +130,6 @@ func (c *Client) writePump() {
 			}
 			w.Write(message)
 
-			// Add queued messages to the current WebSocket message
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write([]byte{'\n'})
@@ -170,17 +152,15 @@ func (c *Client) writePump() {
 	}
 }
 
-// Start begins reading and writing for this client
 // This blocks until the connection is closed, so it should be called
 // as the last operation in the connection handler
 func (c *Client) Start() {
 	go c.writePump()
-	c.readPump() // Block on read pump - when it returns, connection is closed
+	c.readPump()
 }
 
-// SendError sends an error message to the client
 func (c *Client) SendError(message, code string) {
-	c.hub.BroadcastToRoom(c.RoomID, Message{
+	c.hub.BroadcastToRoom(c.RoomID, WsMessage{
 		Type: EventTypeError,
 		Payload: ErrorPayload{
 			Message: message,

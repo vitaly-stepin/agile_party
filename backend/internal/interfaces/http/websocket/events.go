@@ -1,36 +1,33 @@
 package websocket
 
-// EventType represents WebSocket event types
-type EventType string
+// WsEventType represents WebSocket event types
+type WsEventType string
 
-// Client-to-Server Events
+// Client Events
 const (
-	EventTypeVote           EventType = "vote"
-	EventTypeReveal         EventType = "reveal"
-	EventTypeClear          EventType = "clear"
-	EventTypeUpdateNickname EventType = "update_nickname"
-	EventTypeSetTask        EventType = "set_task"
+	EventTypeVote           WsEventType = "vote"
+	EventTypeReveal         WsEventType = "reveal"
+	EventTypeClear          WsEventType = "clear"
+	EventTypeUpdateNickname WsEventType = "update_nickname"
+	EventTypeSetTask        WsEventType = "set_task"
 )
 
-// Server-to-Client Events
+// Server Events
 const (
-	EventTypeRoomState      EventType = "room_state"
-	EventTypeUserJoined     EventType = "user_joined"
-	EventTypeUserLeft       EventType = "user_left"
-	EventTypeVoteSubmitted  EventType = "vote_submitted"
-	EventTypeVotesRevealed  EventType = "votes_revealed"
-	EventTypeVotesCleared   EventType = "votes_cleared"
-	EventTypeUserUpdated    EventType = "user_updated"
-	EventTypeError          EventType = "error"
+	EventTypeRoomState     WsEventType = "room_state"
+	EventTypeUserJoined    WsEventType = "user_joined"
+	EventTypeUserLeft      WsEventType = "user_left"
+	EventTypeVoteSubmitted WsEventType = "vote_submitted"
+	EventTypeVotesRevealed WsEventType = "votes_revealed"
+	EventTypeVotesCleared  WsEventType = "votes_cleared"
+	EventTypeUserUpdated   WsEventType = "user_updated"
+	EventTypeError         WsEventType = "error"
 )
 
-// Message represents a WebSocket message
-type Message struct {
-	Type    EventType   `json:"type"`
+type WsMessage struct {
+	Type    WsEventType `json:"type"`
 	Payload interface{} `json:"payload"`
 }
-
-// Client-to-Server Payloads
 
 type VotePayload struct {
 	Value string `json:"value"`
@@ -43,8 +40,6 @@ type UpdateNicknamePayload struct {
 type SetTaskPayload struct {
 	Description string `json:"description"`
 }
-
-// Server-to-Client Payloads
 
 type RoomStatePayload struct {
 	RoomID          string        `json:"roomId"`

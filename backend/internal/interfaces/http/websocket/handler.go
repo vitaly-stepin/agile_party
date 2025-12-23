@@ -17,27 +17,25 @@ var upgrader = websocket.FastHTTPUpgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-		// Allow all origins for MVP (configure properly in production)
+		// Allow all origins for MVP (configure properly in prod)
 		return true
 	},
 }
 
-// Handler manages WebSocket connections and message routing
-type Handler struct {
-	hub           *Hub
+type WsHandler struct {
+	hub           *WsHub
 	roomService   *application.RoomService
 	userService   *application.UserService
 	votingService *application.VotingService
 }
 
-// NewHandler creates a new WebSocket handler
 func NewHandler(
-	hub *Hub,
+	hub *WsHub,
 	roomService *application.RoomService,
 	userService *application.UserService,
 	votingService *application.VotingService,
-) *Handler {
-	return &Handler{
+) *WsHandler {
+	return &WsHandler{
 		hub:           hub,
 		roomService:   roomService,
 		userService:   userService,
@@ -45,8 +43,7 @@ func NewHandler(
 	}
 }
 
-// HandleConnection handles WebSocket connection upgrades
-func (h *Handler) HandleConnection(c *fiber.Ctx) error {
+func (h *WsHandler) HandleConnection(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	userID := c.Query("userId")
 	nickname := c.Query("nickname")
@@ -59,7 +56,7 @@ func (h *Handler) HandleConnection(c *fiber.Ctx) error {
 		})
 	}
 
-	// Upgrade the connection
+	// Upgrade the http conn to a WebSocket
 	err := upgrader.Upgrade(c.Context(), func(conn *websocket.Conn) {
 		h.handleWebSocket(conn, roomID, userID, nickname)
 	})
@@ -67,14 +64,13 @@ func (h *Handler) HandleConnection(c *fiber.Ctx) error {
 	return err
 }
 
-// handleWebSocket manages the WebSocket lifecycle for a client
-func (h *Handler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname string) {
+// manages the WebSocket lifecycle for a client
+func (h *WsHandler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname string) {
 	ctx := context.Background()
 
-	// Join room (adds user to in-memory state)
 	if err := h.userService.JoinRoom(ctx, roomID, userID, nickname); err != nil {
 		log.Printf("Failed to join room %s for user %s: %v", roomID, userID, err)
-		conn.WriteJSON(Message{
+		conn.WriteJSON(WsMessage{
 			Type: EventTypeError,
 			Payload: ErrorPayload{
 				Message: "Failed to join room: " + err.Error(),
@@ -85,19 +81,16 @@ func (h *Handler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname
 		return
 	}
 
-	// Create client and register with hub
 	log.Printf("[DEBUG] Creating client - roomID: '%s', userID: '%s'", roomID, userID)
 	client := NewClient(conn, h.hub, roomID, userID, h)
 	log.Printf("[DEBUG] Client created - client.RoomID: '%s', client.UserID: '%s'", client.RoomID, client.UserID)
 	h.hub.register <- client
 
-	// Send initial room state to the new client
 	if err := h.sendRoomState(client); err != nil {
 		log.Printf("Failed to send initial state to user %s in room %s: %v", userID, roomID, err)
 	}
 
-	// Broadcast user joined to other clients
-	h.hub.BroadcastToRoom(roomID, Message{
+	h.hub.BroadcastToRoom(roomID, WsMessage{
 		Type: EventTypeUserJoined,
 		Payload: UserJoinedPayload{
 			UserID:   userID,
@@ -105,15 +98,12 @@ func (h *Handler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname
 		},
 	}, client)
 
-	// Handle disconnection cleanup
 	defer func() {
-		// Remove user from room
 		if err := h.userService.LeaveRoom(ctx, roomID, userID); err != nil {
 			log.Printf("Failed to remove user %s from room %s: %v", userID, roomID, err)
 		}
 
-		// Broadcast user left
-		h.hub.BroadcastToRoom(roomID, Message{
+		h.hub.BroadcastToRoom(roomID, WsMessage{
 			Type: EventTypeUserLeft,
 			Payload: UserLeftPayload{
 				UserID: userID,
@@ -123,12 +113,10 @@ func (h *Handler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname
 		log.Printf("User %s disconnected from room %s", userID, roomID)
 	}()
 
-	// Start client pumps
 	client.Start()
 }
 
-// HandleMessage processes incoming WebSocket messages (implements MessageHandler)
-func (h *Handler) HandleMessage(client *Client, msg Message) error {
+func (h *WsHandler) HandleMessage(client *Client, msg WsMessage) error {
 	ctx := context.Background()
 
 	switch msg.Type {
@@ -152,26 +140,22 @@ func (h *Handler) HandleMessage(client *Client, msg Message) error {
 	}
 }
 
-// handleVote processes a vote submission
-func (h *Handler) handleVote(ctx context.Context, client *Client, msg Message) error {
+func (h *WsHandler) handleVote(ctx context.Context, client *Client, msg WsMessage) error {
 	var payload VotePayload
 	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
 		return fmt.Errorf("invalid vote payload: %w", err)
 	}
 
-	// Submit vote
 	if err := h.votingService.SubmitVote(ctx, client.RoomID, client.UserID, payload.Value); err != nil {
 		return fmt.Errorf("failed to submit vote: %w", err)
 	}
 
-	// Get updated room state
 	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
-	// Broadcast updated room state to all clients
-	h.hub.BroadcastToRoom(client.RoomID, Message{
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type:    EventTypeRoomState,
 		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
@@ -179,24 +163,19 @@ func (h *Handler) handleVote(ctx context.Context, client *Client, msg Message) e
 	return nil
 }
 
-// handleReveal processes a reveal request
-func (h *Handler) handleReveal(ctx context.Context, client *Client) error {
-	// Reveal votes
+func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 	result, err := h.votingService.RevealVotes(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to reveal votes: %w", err)
 	}
 
-	// Get room state to access user names
 	state, err := h.roomService.GetRoomState(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
-	// Convert votes to payload format with user names
 	votes := make([]VoteInfo, 0, len(result.Votes))
 	for userID, voteValue := range result.Votes {
-		// Find user name from state
 		userName := ""
 		for _, user := range state.Users {
 			if user.UserID == userID {
@@ -211,8 +190,7 @@ func (h *Handler) handleReveal(ctx context.Context, client *Client) error {
 		})
 	}
 
-	// Broadcast votes revealed
-	h.hub.BroadcastToRoom(client.RoomID, Message{
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type: EventTypeVotesRevealed,
 		Payload: VotesRevealedPayload{
 			Votes:   votes,
@@ -223,21 +201,17 @@ func (h *Handler) handleReveal(ctx context.Context, client *Client) error {
 	return nil
 }
 
-// handleClear processes a clear votes request
-func (h *Handler) handleClear(ctx context.Context, client *Client) error {
-	// Clear votes
+func (h *WsHandler) handleClear(ctx context.Context, client *Client) error {
 	if err := h.votingService.ClearVotes(ctx, client.RoomID); err != nil {
 		return fmt.Errorf("failed to clear votes: %w", err)
 	}
 
-	// Get updated room state to sync user voting status
 	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
-	// Broadcast updated room state (includes reset user voting status)
-	h.hub.BroadcastToRoom(client.RoomID, Message{
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type:    EventTypeRoomState,
 		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
@@ -245,20 +219,17 @@ func (h *Handler) handleClear(ctx context.Context, client *Client) error {
 	return nil
 }
 
-// handleUpdateNickname processes a nickname update request
-func (h *Handler) handleUpdateNickname(ctx context.Context, client *Client, msg Message) error {
+func (h *WsHandler) handleUpdateNickname(ctx context.Context, client *Client, msg WsMessage) error {
 	var payload UpdateNicknamePayload
 	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
 		return fmt.Errorf("invalid nickname payload: %w", err)
 	}
 
-	// Update nickname
 	if err := h.userService.UpdateUserName(ctx, client.RoomID, client.UserID, payload.Nickname); err != nil {
 		return fmt.Errorf("failed to update nickname: %w", err)
 	}
 
-	// Broadcast user updated
-	h.hub.BroadcastToRoom(client.RoomID, Message{
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type: EventTypeUserUpdated,
 		Payload: UserUpdatedPayload{
 			UserID:   client.UserID,
@@ -269,25 +240,22 @@ func (h *Handler) handleUpdateNickname(ctx context.Context, client *Client, msg 
 	return nil
 }
 
-// handleSetTask processes a task description update
-func (h *Handler) handleSetTask(ctx context.Context, client *Client, msg Message) error {
+func (h *WsHandler) handleSetTask(ctx context.Context, client *Client, msg WsMessage) error {
 	var payload SetTaskPayload
 	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
 		return fmt.Errorf("invalid task payload: %w", err)
 	}
 
-	// Update task description in state
 	if err := h.roomService.UpdateTaskDescription(ctx, client.RoomID, payload.Description); err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
 
-	// Send updated room state to all clients
 	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, Message{
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type:    EventTypeRoomState,
 		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
@@ -295,8 +263,7 @@ func (h *Handler) handleSetTask(ctx context.Context, client *Client, msg Message
 	return nil
 }
 
-// sendRoomState sends the current room state to a client
-func (h *Handler) sendRoomState(client *Client) error {
+func (h *WsHandler) sendRoomState(client *Client) error {
 	ctx := context.Background()
 
 	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
@@ -306,7 +273,7 @@ func (h *Handler) sendRoomState(client *Client) error {
 
 	payload := h.convertRoomStateToPayload(roomState)
 
-	data, err := json.Marshal(Message{
+	data, err := json.Marshal(WsMessage{
 		Type:    EventTypeRoomState,
 		Payload: payload,
 	})
@@ -318,8 +285,7 @@ func (h *Handler) sendRoomState(client *Client) error {
 	return nil
 }
 
-// convertRoomStateToPayload converts DTO to WebSocket payload
-func (h *Handler) convertRoomStateToPayload(state *dto.RoomStateResp) RoomStatePayload {
+func (h *WsHandler) convertRoomStateToPayload(state *dto.RoomStateResp) RoomStatePayload {
 	users := make([]UserPayload, len(state.Users))
 	for i, user := range state.Users {
 		users[i] = UserPayload{
@@ -350,7 +316,6 @@ func (h *Handler) convertRoomStateToPayload(state *dto.RoomStateResp) RoomStateP
 	}
 }
 
-// unmarshalPayload unmarshals a payload to the target type
 func unmarshalPayload(payload interface{}, target interface{}) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
