@@ -6,34 +6,22 @@ import (
 	"sync"
 )
 
-// Hub manages WebSocket connections and broadcasts messages
-type Hub struct {
-	// Registered clients by room
-	rooms map[string]map[*Client]bool
-
-	// Register requests from clients
-	register chan *Client
-
-	// Unregister requests from clients
+type WsHub struct {
+	rooms      map[string]map[*Client]bool
+	register   chan *Client
 	unregister chan *Client
-
-	// Broadcast message to specific room
-	broadcast chan BroadcastMessage
-
-	// Mutex to protect rooms map
-	mu sync.RWMutex
+	broadcast  chan BroadcastMessage
+	mu         sync.RWMutex
 }
 
-// BroadcastMessage represents a message to broadcast to a room
 type BroadcastMessage struct {
 	RoomID  string
-	Message Message
+	Message WsMessage
 	Exclude *Client // Optional: exclude this client from broadcast
 }
 
-// NewHub creates a new Hub instance
-func NewHub() *Hub {
-	return &Hub{
+func NewHub() *WsHub {
+	return &WsHub{
 		rooms:      make(map[string]map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -41,8 +29,7 @@ func NewHub() *Hub {
 	}
 }
 
-// Run starts the hub's main loop
-func (h *Hub) Run() {
+func (h *WsHub) Run() {
 	for {
 		select {
 		case client := <-h.register:
@@ -57,8 +44,7 @@ func (h *Hub) Run() {
 	}
 }
 
-// registerClient adds a client to a room
-func (h *Hub) registerClient(client *Client) {
+func (h *WsHub) registerClient(client *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -71,8 +57,7 @@ func (h *Hub) registerClient(client *Client) {
 		client.UserID, client.RoomID, len(h.rooms[client.RoomID]))
 }
 
-// unregisterClient removes a client from a room
-func (h *Hub) unregisterClient(client *Client) {
+func (h *WsHub) unregisterClient(client *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -81,7 +66,7 @@ func (h *Hub) unregisterClient(client *Client) {
 			delete(clients, client)
 			close(client.send)
 
-			// Clean up empty rooms
+			// Clean up empty rooms, consider refactoring because might it may cause unexpected behavior
 			if len(clients) == 0 {
 				delete(h.rooms, client.RoomID)
 				log.Printf("Room %s is now empty and removed", client.RoomID)
@@ -93,8 +78,7 @@ func (h *Hub) unregisterClient(client *Client) {
 	}
 }
 
-// broadcastToRoom sends a message to all clients in a room
-func (h *Hub) broadcastToRoom(msg BroadcastMessage) {
+func (h *WsHub) broadcastToRoom(msg BroadcastMessage) {
 	h.mu.RLock()
 	clients := h.rooms[msg.RoomID]
 	h.mu.RUnlock()
@@ -103,23 +87,19 @@ func (h *Hub) broadcastToRoom(msg BroadcastMessage) {
 		return
 	}
 
-	// Marshal message once
 	data, err := json.Marshal(msg.Message)
 	if err != nil {
 		log.Printf("Failed to marshal broadcast message: %v", err)
 		return
 	}
 
-	// Send to all clients in room
 	for client := range clients {
-		// Skip excluded client (e.g., the sender)
 		if msg.Exclude != nil && client == msg.Exclude {
 			continue
 		}
 
 		select {
 		case client.send <- data:
-			// Message sent successfully
 		default:
 			// Client's send channel is full, close connection
 			log.Printf("Client %s send channel full, closing connection", client.UserID)
@@ -128,8 +108,7 @@ func (h *Hub) broadcastToRoom(msg BroadcastMessage) {
 	}
 }
 
-// BroadcastToRoom queues a message for broadcast to a room
-func (h *Hub) BroadcastToRoom(roomID string, message Message, exclude *Client) {
+func (h *WsHub) BroadcastToRoom(roomID string, message WsMessage, exclude *Client) {
 	h.broadcast <- BroadcastMessage{
 		RoomID:  roomID,
 		Message: message,
@@ -137,8 +116,7 @@ func (h *Hub) BroadcastToRoom(roomID string, message Message, exclude *Client) {
 	}
 }
 
-// GetRoomClientCount returns the number of clients in a room
-func (h *Hub) GetRoomClientCount(roomID string) int {
+func (h *WsHub) GetRoomClientCount(roomID string) int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 

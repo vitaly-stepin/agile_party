@@ -6,14 +6,12 @@ import (
 	"github.com/vitaly-stepin/agile_party/internal/application/dto"
 )
 
-// RoomHandler handles HTTP requests for room operations
 type RoomHandler struct {
 	roomService   *application.RoomService
 	userService   *application.UserService
 	votingService *application.VotingService
 }
 
-// NewRoomHandler creates a new RoomHandler
 func NewRoomHandler(
 	roomService *application.RoomService,
 	userService *application.UserService,
@@ -26,7 +24,6 @@ func NewRoomHandler(
 	}
 }
 
-// NewRoom handles POST /api/rooms
 func (h *RoomHandler) NewRoom(c *fiber.Ctx) error {
 	var req dto.NewRoomReq
 	if err := c.BodyParser(&req); err != nil {
@@ -35,7 +32,6 @@ func (h *RoomHandler) NewRoom(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set default voting system if not provided
 	if req.VotingSystem == "" {
 		req.VotingSystem = "fibonacci"
 	}
@@ -50,7 +46,6 @@ func (h *RoomHandler) NewRoom(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(response)
 }
 
-// GetRoom handles GET /api/rooms/:id
 func (h *RoomHandler) GetRoom(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -69,7 +64,6 @@ func (h *RoomHandler) GetRoom(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// GetRoomState handles GET /api/rooms/:id/state
 func (h *RoomHandler) GetRoomState(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -88,7 +82,6 @@ func (h *RoomHandler) GetRoomState(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// JoinRoom handles POST /api/rooms/:id/users
 func (h *RoomHandler) JoinRoom(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -124,7 +117,6 @@ func (h *RoomHandler) JoinRoom(c *fiber.Ctx) error {
 	})
 }
 
-// LeaveRoom handles DELETE /api/rooms/:id/users/:userId
 func (h *RoomHandler) LeaveRoom(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	userID := c.Params("userId")
@@ -146,7 +138,6 @@ func (h *RoomHandler) LeaveRoom(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateUserName handles PATCH /api/rooms/:id/users/:userId
 func (h *RoomHandler) UpdateUserName(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	userID := c.Params("userId")
@@ -183,7 +174,6 @@ func (h *RoomHandler) UpdateUserName(c *fiber.Ctx) error {
 	})
 }
 
-// SubmitVote handles POST /api/rooms/:id/votes
 func (h *RoomHandler) SubmitVote(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -216,7 +206,6 @@ func (h *RoomHandler) SubmitVote(c *fiber.Ctx) error {
 	})
 }
 
-// RevealVotes handles POST /api/rooms/:id/reveal
 func (h *RoomHandler) RevealVotes(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -235,7 +224,6 @@ func (h *RoomHandler) RevealVotes(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// ClearVotes handles POST /api/rooms/:id/clear
 func (h *RoomHandler) ClearVotes(c *fiber.Ctx) error {
 	roomID := c.Params("id")
 	if roomID == "" {
@@ -255,7 +243,6 @@ func (h *RoomHandler) ClearVotes(c *fiber.Ctx) error {
 	})
 }
 
-// Health handles GET /api/health
 func (h *RoomHandler) Health(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":  "ok",
