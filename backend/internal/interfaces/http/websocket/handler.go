@@ -27,6 +27,7 @@ type WsHandler struct {
 	roomService   *application.RoomService
 	userService   *application.UserService
 	votingService *application.VotingService
+	taskService   *application.TaskService
 }
 
 func NewHandler(
@@ -34,23 +35,31 @@ func NewHandler(
 	roomService *application.RoomService,
 	userService *application.UserService,
 	votingService *application.VotingService,
+	taskService *application.TaskService,
 ) *WsHandler {
 	return &WsHandler{
 		hub:           hub,
 		roomService:   roomService,
 		userService:   userService,
 		votingService: votingService,
+		taskService:   taskService,
 	}
 }
 
 func (h *WsHandler) HandleConnection(c *fiber.Ctx) error {
+	// IMPORTANT: Copy strings immediately to avoid fasthttp buffer reuse issues
 	roomID := c.Params("id")
+	roomIDCopy := string([]byte(roomID))
+
 	userID := c.Query("userId")
+	userIDCopy := string([]byte(userID))
+
 	nickname := c.Query("nickname")
+	nicknameCopy := string([]byte(nickname))
 
-	log.Printf("[DEBUG] WebSocket connection - roomID: '%s', userID: '%s', path: '%s'", roomID, userID, c.Path())
+	log.Printf("[DEBUG] WebSocket connection - roomID: '%s', userID: '%s', path: '%s'", roomIDCopy, userIDCopy, c.Path())
 
-	if roomID == "" || userID == "" || nickname == "" {
+	if roomIDCopy == "" || userIDCopy == "" || nicknameCopy == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "roomId, userId, and nickname are required",
 		})
@@ -58,7 +67,7 @@ func (h *WsHandler) HandleConnection(c *fiber.Ctx) error {
 
 	// Upgrade the http conn to a WebSocket
 	err := upgrader.Upgrade(c.Context(), func(conn *websocket.Conn) {
-		h.handleWebSocket(conn, roomID, userID, nickname)
+		h.handleWebSocket(conn, roomIDCopy, userIDCopy, nicknameCopy)
 	})
 
 	return err
@@ -67,6 +76,9 @@ func (h *WsHandler) HandleConnection(c *fiber.Ctx) error {
 // manages the WebSocket lifecycle for a client
 func (h *WsHandler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickname string) {
 	ctx := context.Background()
+
+	// Remove user if they already exist (handles reconnection/stale connections)
+	_ = h.userService.LeaveRoom(ctx, roomID, userID)
 
 	if err := h.userService.JoinRoom(ctx, roomID, userID, nickname); err != nil {
 		log.Printf("Failed to join room %s for user %s: %v", roomID, userID, err)
@@ -88,6 +100,11 @@ func (h *WsHandler) handleWebSocket(conn *websocket.Conn, roomID, userID, nickna
 
 	if err := h.sendRoomState(client); err != nil {
 		log.Printf("Failed to send initial state to user %s in room %s: %v", userID, roomID, err)
+	}
+
+	// Send initial task list
+	if err := h.sendTaskListSync(client); err != nil {
+		log.Printf("Failed to send task list to user %s in room %s: %v", userID, roomID, err)
 	}
 
 	h.hub.BroadcastToRoom(roomID, WsMessage{
@@ -135,6 +152,21 @@ func (h *WsHandler) HandleMessage(client *Client, msg WsMessage) error {
 	case EventTypeSetTask:
 		return h.handleSetTask(ctx, client, msg)
 
+	case EventTypeCreateTask:
+		return h.handleCreateTask(ctx, client, msg)
+
+	case EventTypeUpdateTask:
+		return h.handleUpdateTask(ctx, client, msg)
+
+	case EventTypeDeleteTask:
+		return h.handleDeleteTask(ctx, client, msg)
+
+	case EventTypeReorderTasks:
+		return h.handleReorderTasks(ctx, client, msg)
+
+	case EventTypeSetActiveTask:
+		return h.handleSetActiveTask(ctx, client, msg)
+
 	default:
 		return fmt.Errorf("unknown event type: %s", msg.Type)
 	}
@@ -174,6 +206,17 @@ func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
+	// Save estimation to active task if votes were cast
+	taskUpdated := false
+	if len(result.Votes) > 0 {
+		estimation := h.determineEstimation(result)
+		if err := h.taskService.SaveEstimation(ctx, client.RoomID, estimation); err != nil {
+			log.Printf("Warning: failed to save estimation on reveal: %v", err)
+		} else {
+			taskUpdated = true
+		}
+	}
+
 	votes := make([]VoteInfo, 0, len(result.Votes))
 	for userID, voteValue := range result.Votes {
 		userName := ""
@@ -198,23 +241,85 @@ func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 		},
 	}, nil)
 
+	// Broadcast updated task list to show the new estimation
+	if taskUpdated {
+		tasks, err := h.taskService.GetRoomTasks(ctx, client.RoomID)
+		if err == nil {
+			taskPayloads := make([]TaskPayload, len(tasks))
+			for i, task := range tasks {
+				taskPayloads[i] = convertTaskToPayload(task)
+			}
+			h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+				Type: EventTypeTaskListSync,
+				Payload: TaskListSyncPayload{
+					Tasks: taskPayloads,
+				},
+			}, nil)
+		}
+	}
+
 	return nil
 }
 
 func (h *WsHandler) handleClear(ctx context.Context, client *Client) error {
+	// Clear votes (estimation was already saved on reveal)
 	if err := h.votingService.ClearVotes(ctx, client.RoomID); err != nil {
 		return fmt.Errorf("failed to clear votes: %w", err)
 	}
 
-	roomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
+	// Move to next unestimated task
+	nextTask, err := h.taskService.GetNextUnestimatedTask(ctx, client.RoomID)
+	if err != nil {
+		log.Printf("Warning: failed to get next unestimated task: %v", err)
+	}
+
+	// Get updated room state
+	newRoomState, err := h.roomService.GetRoomState(ctx, client.RoomID)
 	if err != nil {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
+	// Get updated task list to reflect saved estimations
+	tasks, err := h.taskService.GetRoomTasks(ctx, client.RoomID)
+	if err != nil {
+		log.Printf("Warning: failed to get tasks after clear: %v", err)
+	}
+
+	// Broadcast votes cleared event
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type:    EventTypeVotesCleared,
+		Payload: VotesClearedPayload{},
+	}, nil)
+
+	// Broadcast room state
 	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
 		Type:    EventTypeRoomState,
-		Payload: h.convertRoomStateToPayload(roomState),
+		Payload: h.convertRoomStateToPayload(newRoomState),
 	}, nil)
+
+	// Broadcast updated task list to show saved estimations
+	if tasks != nil {
+		taskPayloads := make([]TaskPayload, len(tasks))
+		for i, task := range tasks {
+			taskPayloads[i] = convertTaskToPayload(task)
+		}
+		h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+			Type: EventTypeTaskListSync,
+			Payload: TaskListSyncPayload{
+				Tasks: taskPayloads,
+			},
+		}, nil)
+	}
+
+	// If there's a next task, broadcast that too
+	if nextTask != nil {
+		h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+			Type: EventTypeActiveTaskSet,
+			Payload: SetActiveTaskPayload{
+				TaskID: nextTask.ID,
+			},
+		}, nil)
+	}
 
 	return nil
 }
@@ -322,4 +427,190 @@ func unmarshalPayload(payload interface{}, target interface{}) error {
 		return err
 	}
 	return json.Unmarshal(data, target)
+}
+
+// Task-related handlers
+func (h *WsHandler) handleCreateTask(ctx context.Context, client *Client, msg WsMessage) error {
+	var payload CreateTaskPayload
+	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
+		return fmt.Errorf("invalid create task payload: %w", err)
+	}
+
+	req := &dto.CreateTaskReq{
+		Headline:    payload.Headline,
+		Description: payload.Description,
+		TrackerLink: payload.TrackerLink,
+	}
+
+	task, err := h.taskService.CreateTask(ctx, client.RoomID, req)
+	if err != nil {
+		return fmt.Errorf("failed to create task: %w", err)
+	}
+
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type:    EventTypeTaskCreated,
+		Payload: convertTaskToPayload(task),
+	}, nil)
+
+	return nil
+}
+
+func (h *WsHandler) handleUpdateTask(ctx context.Context, client *Client, msg WsMessage) error {
+	var payload UpdateTaskPayload
+	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
+		return fmt.Errorf("invalid update task payload: %w", err)
+	}
+
+	req := &dto.UpdateTaskReq{
+		Headline:    payload.Headline,
+		Description: payload.Description,
+		TrackerLink: payload.TrackerLink,
+	}
+
+	task, err := h.taskService.UpdateTask(ctx, payload.TaskID, req)
+	if err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type:    EventTypeTaskUpdated,
+		Payload: convertTaskToPayload(task),
+	}, nil)
+
+	return nil
+}
+
+func (h *WsHandler) handleDeleteTask(ctx context.Context, client *Client, msg WsMessage) error {
+	var payload DeleteTaskPayload
+	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
+		return fmt.Errorf("invalid delete task payload: %w", err)
+	}
+
+	if err := h.taskService.DeleteTask(ctx, payload.TaskID); err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type: EventTypeTaskDeleted,
+		Payload: fiber.Map{
+			"taskId": payload.TaskID,
+		},
+	}, nil)
+
+	return nil
+}
+
+func (h *WsHandler) handleReorderTasks(ctx context.Context, client *Client, msg WsMessage) error {
+	var payload ReorderTasksPayload
+	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
+		return fmt.Errorf("invalid reorder payload: %w", err)
+	}
+
+	req := &dto.ReorderTasksReq{
+		TaskIDs: payload.TaskIDs,
+	}
+
+	if err := h.taskService.ReorderTasks(ctx, client.RoomID, req); err != nil {
+		return fmt.Errorf("failed to reorder tasks: %w", err)
+	}
+
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type:    EventTypeTasksReordered,
+		Payload: payload,
+	}, nil)
+
+	return nil
+}
+
+func (h *WsHandler) handleSetActiveTask(ctx context.Context, client *Client, msg WsMessage) error {
+	var payload SetActiveTaskPayload
+	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
+		return fmt.Errorf("invalid set active task payload: %w", err)
+	}
+
+	h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+		Type:    EventTypeActiveTaskSet,
+		Payload: payload,
+	}, nil)
+
+	return nil
+}
+
+func (h *WsHandler) sendTaskListSync(client *Client) error {
+	ctx := context.Background()
+
+	tasks, err := h.taskService.GetRoomTasks(ctx, client.RoomID)
+	if err != nil {
+		return fmt.Errorf("failed to get tasks: %w", err)
+	}
+
+	taskPayloads := make([]TaskPayload, len(tasks))
+	for i, task := range tasks {
+		taskPayloads[i] = convertTaskToPayload(task)
+	}
+
+	payload := TaskListSyncPayload{
+		Tasks: taskPayloads,
+	}
+
+	data, err := json.Marshal(WsMessage{
+		Type:    EventTypeTaskListSync,
+		Payload: payload,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal task list: %w", err)
+	}
+
+	client.send <- data
+	return nil
+}
+
+func convertTaskToPayload(task *dto.TaskResp) TaskPayload {
+	return TaskPayload{
+		ID:          task.ID,
+		RoomID:      task.RoomID,
+		Headline:    task.Headline,
+		Description: task.Description,
+		TrackerLink: task.TrackerLink,
+		Estimation:  task.Estimation,
+		Position:    task.Position,
+	}
+}
+
+// determineEstimation calculates the estimation value from reveal results
+// Uses average for numeric votes, or consensus/most common vote for non-numeric
+func (h *WsHandler) determineEstimation(result *dto.RevealVotesResp) string {
+	// If we have a numeric average, use it
+	if result.Average != nil {
+		return fmt.Sprintf("%.1f", *result.Average)
+	}
+
+	// No numeric average - find consensus or most common vote
+	if len(result.Votes) == 0 {
+		return "?"
+	}
+
+	// Count vote occurrences
+	voteCounts := make(map[string]int)
+	for _, voteValue := range result.Votes {
+		voteCounts[voteValue]++
+	}
+
+	// Find the most common vote
+	var maxCount int
+	var mostCommon string
+	for value, count := range voteCounts {
+		if count > maxCount {
+			maxCount = count
+			mostCommon = value
+		}
+	}
+
+	// If everyone voted the same, use that value
+	if maxCount == len(result.Votes) {
+		return mostCommon
+	}
+
+	// No clear consensus - mark as uncertain
+	return "?"
 }

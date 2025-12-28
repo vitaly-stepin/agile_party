@@ -39,6 +39,7 @@ func main() {
 	log.Println("✅ Database migrations applied")
 
 	roomRepo := postgres.NewRoomRepository(db)
+	taskRepo := postgres.NewTaskRepository(db)
 	stateManager := memory.NewRoomStateManager(memory.CleanupConfig{
 		CleanupInterval: cfg.Memory.CleanupInterval,
 		RoomTTL:         cfg.Memory.RoomTTL,
@@ -48,6 +49,7 @@ func main() {
 	roomService := application.NewRoomService(roomRepo, stateManager)
 	userService := application.NewUserService(roomRepo, stateManager)
 	votingService := application.NewVotingService(roomRepo, stateManager)
+	taskService := application.NewTaskService(taskRepo, roomRepo)
 	log.Println("✅ Application services initialized")
 
 	ws_hub := ws.NewHub()
@@ -55,7 +57,7 @@ func main() {
 	log.Println("✅ WebSocket hub started")
 
 	roomHandler := rest.NewRoomHandler(roomService, userService, votingService)
-	wsHandler := ws.NewHandler(ws_hub, roomService, userService, votingService)
+	wsHandler := ws.NewHandler(ws_hub, roomService, userService, votingService, taskService)
 	log.Println("✅ Handlers initialized")
 
 	app := fiber.New(fiber.Config{

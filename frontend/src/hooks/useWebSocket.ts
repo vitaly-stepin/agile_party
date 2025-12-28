@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { WebSocketClient } from '../services/websocket';
 import type { ConnectionState } from '../services/websocket';
-import type { ServerEvent, ClientEvent } from '../types';
+import type { ServerEvent, ClientEvent, Task, TaskListSyncPayload } from '../types';
 import { useRoom } from '../context/RoomContext';
+import { useTasks } from '../context/TaskContext';
 import { api } from '../services/api';
 
 interface UseWebSocketReturn {
@@ -14,6 +15,15 @@ interface UseWebSocketReturn {
 
 export const useWebSocket = (roomId: string): UseWebSocketReturn => {
   const { currentUserId, currentUser, setRoomState, updateVotes, setRevealed, updateUserVoteStatus } = useRoom();
+  const taskContext = useTasks();
+  const tasks = taskContext?.tasks || [];
+  const activeTask = taskContext?.activeTask || null;
+  const setTasks = taskContext?.setTasks;
+  const addTask = taskContext?.addTask;
+  const updateTask = taskContext?.updateTask;
+  const removeTask = taskContext?.removeTask;
+  const reorderTasks = taskContext?.reorderTasks;
+  const setActiveTask = taskContext?.setActiveTask;
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const wsClient = useRef<WebSocketClient | null>(null);
 
@@ -22,6 +32,14 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
   const updateVotesRef = useRef(updateVotes);
   const setRevealedRef = useRef(setRevealed);
   const updateUserVoteStatusRef = useRef(updateUserVoteStatus);
+  const setTasksRef = useRef(setTasks);
+  const addTaskRef = useRef(addTask);
+  const updateTaskRef = useRef(updateTask);
+  const removeTaskRef = useRef(removeTask);
+  const reorderTasksRef = useRef(reorderTasks);
+  const setActiveTaskRef = useRef(setActiveTask);
+  const tasksRef = useRef(tasks);
+  const activeTaskRef = useRef(activeTask);
 
   // Keep refs in sync with latest values
   useEffect(() => {
@@ -29,7 +47,15 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
     updateVotesRef.current = updateVotes;
     setRevealedRef.current = setRevealed;
     updateUserVoteStatusRef.current = updateUserVoteStatus;
-  }, [setRoomState, updateVotes, setRevealed, updateUserVoteStatus]);
+    setTasksRef.current = setTasks;
+    addTaskRef.current = addTask;
+    updateTaskRef.current = updateTask;
+    removeTaskRef.current = removeTask;
+    reorderTasksRef.current = reorderTasks;
+    setActiveTaskRef.current = setActiveTask;
+    tasksRef.current = tasks;
+    activeTaskRef.current = activeTask;
+  }, [setRoomState, updateVotes, setRevealed, updateUserVoteStatus, setTasks, addTask, updateTask, removeTask, reorderTasks, setActiveTask, tasks, activeTask]);
 
   const fetchRoomState = useCallback(async () => {
     if (!roomId) return;
@@ -81,11 +107,10 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
         }
 
         case 'votes_cleared': {
-          // Clear votes for new round and fetch updated user states
+          // Clear votes for new round
+          // Backend will send updated room_state right after this event
           updateVotesRef.current([]);
           setRevealedRef.current(false);
-          // Fetch room state to get updated user voting status (all reset to false)
-          fetchRoomState();
           break;
         }
 
@@ -93,6 +118,65 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
           // Handle error
           const { message } = event.payload;
           console.error('WebSocket error:', message);
+          break;
+        }
+
+        case 'task_list_sync': {
+          const payload = event.payload as TaskListSyncPayload;
+          const currentActiveTaskId = activeTaskRef.current?.id;
+          setTasksRef.current?.(payload.tasks);
+
+          // If we had an active task, update it with the latest data from the synced list
+          // This ensures the active task reference has updated estimation after reveal/clear
+          if (currentActiveTaskId && setActiveTaskRef.current) {
+            const updatedActiveTask = payload.tasks.find(t => t.id === currentActiveTaskId);
+            if (updatedActiveTask) {
+              setActiveTaskRef.current(updatedActiveTask);
+            }
+          }
+          break;
+        }
+
+        case 'task_created': {
+          const task = event.payload as Task;
+          addTaskRef.current?.(task);
+          break;
+        }
+
+        case 'task_updated': {
+          const task = event.payload as Task;
+          updateTaskRef.current?.(task);
+          break;
+        }
+
+        case 'task_deleted': {
+          const { taskId } = event.payload as { taskId: string };
+          removeTaskRef.current?.(taskId);
+          break;
+        }
+
+        case 'tasks_reordered': {
+          const { taskIds } = event.payload as { taskIds: string[] };
+          reorderTasksRef.current?.(taskIds);
+          break;
+        }
+
+        case 'active_task_set': {
+          const { taskId } = event.payload as { taskId: string };
+          // Find task in current list and set as active
+          const task = tasksRef.current.find(t => t.id === taskId);
+          if (task && setActiveTaskRef.current) {
+            setActiveTaskRef.current(task);
+          } else if (taskId && !task) {
+            // Task not found in current list, might arrive in next task_list_sync
+            // Set a timeout to retry after a brief delay
+            setTimeout(() => {
+              const retryTask = tasksRef.current.find(t => t.id === taskId);
+              if (retryTask && setActiveTaskRef.current) {
+                setActiveTaskRef.current(retryTask);
+              }
+            }, 100);
+          }
           break;
         }
 
@@ -139,10 +223,10 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
   }, [roomId, currentUserId, currentUser?.name]);
 
   const sendEvent = useCallback((event: ClientEvent) => {
-    if (wsClient.current && connectionState === 'connected') {
+    if (wsClient.current?.send) {
       wsClient.current.send(event);
     }
-  }, [connectionState]);
+  }, []);
 
   const disconnect = useCallback(() => {
     if (wsClient.current) {
