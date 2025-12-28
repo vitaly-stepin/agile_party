@@ -1,0 +1,83 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - heading "E2E Test Room 1766938031610" [level=1] [ref=e8]
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: "Room ID:"
+          - code [ref=e12]: "04173645"
+          - button "Copy" [ref=e13]
+        - generic [ref=e16]: Connected
+    - button "Leave Room" [ref=e17]
+  - generic [ref=e19]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - heading "Participants" [level=3] [ref=e23]
+        - paragraph [ref=e24]: 0 of 2 voted
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: S
+            - generic [ref=e33]: Second User
+          - generic [ref=e35]:
+            - img [ref=e36]
+            - generic [ref=e38]: Pending
+        - generic [ref=e39]:
+          - generic [ref=e40]:
+            - generic [ref=e41]: F
+            - generic [ref=e43]:
+              - generic [ref=e44]: First User
+              - generic [ref=e45]: You
+          - generic [ref=e47]:
+            - img [ref=e48]
+            - generic [ref=e50]: Pending
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - generic [ref=e54]:
+          - heading "Tasks" [level=3] [ref=e55]
+          - generic [ref=e56]: 0 / 1 estimated
+        - generic [ref=e57]:
+          - button "All (1)" [ref=e58]
+          - button "Unestimated (1)" [ref=e59]
+        - button "+ Add Task" [ref=e60]
+      - generic [ref=e63] [cursor=pointer]:
+        - generic [ref=e66]: Original task name
+        - generic [ref=e67]:
+          - button "Edit" [ref=e68]
+          - button "Delete" [ref=e69]
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - heading "Current Task" [level=3] [ref=e72]
+        - generic [ref=e73] [cursor=pointer]: Click to add task description
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - heading "Select Your Estimate" [level=3] [ref=e76]
+          - generic [ref=e77]:
+            - button "0" [ref=e78] [cursor=pointer]
+            - button "0.5" [ref=e79] [cursor=pointer]
+            - button "1" [ref=e80] [cursor=pointer]
+            - button "2" [ref=e81] [cursor=pointer]
+            - button "3" [ref=e82] [cursor=pointer]
+            - button "5" [ref=e83] [cursor=pointer]
+            - button "8" [ref=e84] [cursor=pointer]
+            - button "13" [ref=e85] [cursor=pointer]
+            - button "20" [ref=e86] [cursor=pointer]
+            - button "40" [ref=e87] [cursor=pointer]
+            - button "100" [ref=e88] [cursor=pointer]
+            - button "?" [ref=e89] [cursor=pointer]
+          - generic [ref=e90]:
+            - generic [ref=e91]: Select a card to vote
+            - button "Reveal Votes" [disabled] [ref=e92]
+          - paragraph [ref=e93]: Waiting for all users to vote...
+        - generic [ref=e95]:
+          - paragraph [ref=e96]:
+            - strong [ref=e97]: "How it works:"
+          - list [ref=e98]:
+            - listitem [ref=e99]: Click a card to submit your vote
+            - listitem [ref=e100]: You can change your vote before reveal
+            - listitem [ref=e101]: Votes are hidden until everyone has voted
+            - listitem [ref=e102]: Click "Reveal Votes" to see all estimates and the average
+```

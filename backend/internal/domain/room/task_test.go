@@ -24,7 +24,9 @@ func TestNewTask(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			task, err := NewTask(tt.roomID, tt.headline, tt.position)
 			if tt.expectedError {
-				t.Error(t, err)
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
 			}
 			if !tt.expectedError && err != nil {
 				t.Errorf("unexpected error: %v", err)

@@ -67,6 +67,50 @@ The setup includes hot reload for both backend and frontend:
 - **Frontend**: Vite dev server with Hot Module Replacement (HMR)
 
 
+## Testing
+
+### Backend Tests
+
+Run all backend tests with coverage:
+
+```bash
+make test
+```
+
+Or manually:
+
+```bash
+cd backend
+go test -v -race -coverprofile=coverage.out ./...
+```
+
+### E2E Tests
+
+End-to-end tests run in an isolated environment with dedicated services on different ports (5174, 8081, 5433).
+
+**Quick Start:**
+
+```bash
+# Start E2E environment
+./scripts/e2e-setup.sh
+
+# Run tests
+cd e2e && npm test
+
+# Cleanup
+./scripts/e2e-teardown.sh
+```
+
+**Using Makefile:**
+
+```bash
+make e2e-setup    # Start E2E services
+make e2e-test     # Run E2E tests
+make e2e-teardown # Stop E2E services
+```
+
+For detailed documentation on writing tests, debugging, and CI/CD integration, see [e2e/README.md](e2e/README.md).
+
 ## License
 
 MIT

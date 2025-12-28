@@ -109,7 +109,7 @@ export default function TaskList() {
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2" data-testid="task-list">
         {displayedTasks.map(task => (
           <TaskItem
             key={task.id}

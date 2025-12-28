@@ -1,0 +1,71 @@
+services:
+  postgres_e2e:
+    image: postgres:16-alpine
+    container_name: agile_party_db_e2e
+    environment:
+      POSTGRES_DB: agile_party_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ../backend/internal/adapters/postgres/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agile_party_e2e
+
+  backend_e2e:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    container_name: agile_party_backend_e2e
+    ports:
+      - "8081:8080"
+    environment:
+      - DB_HOST=postgres_e2e
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=agile_party_e2e
+      - DB_SSLMODE=disable
+      - SERVER_PORT=8080
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=http://localhost:5174
+    volumes:
+      - ../backend:/app
+      - backend_cache_e2e:/go/pkg/mod
+    depends_on:
+      postgres_e2e:
+        condition: service_healthy
+    networks:
+      - agile_party_e2e
+    command: air -c .air.toml
+
+  frontend_e2e:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: agile_party_frontend_e2e
+    ports:
+      - "5174:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8081
+      - VITE_WS_URL=ws://localhost:8081
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules_e2e:/app/node_modules
+    networks:
+      - agile_party_e2e
+    command: npm run dev -- --host
+
+volumes:
+  backend_cache_e2e:
+  frontend_node_modules_e2e:
+
+networks:
+  agile_party_e2e:
+    driver: bridge

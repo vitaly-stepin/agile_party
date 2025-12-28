@@ -31,7 +31,7 @@ export default function UserList() {
       )}
 
       {/* User List */}
-      <div className="space-y-2">
+      <div className="space-y-2" data-testid="user-list">
         {users.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p className="text-sm">No participants yet</p>

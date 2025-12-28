@@ -40,7 +40,7 @@ export default function VotePanel({ onReveal, sendEvent }: VotePanelProps) {
   console.log('[VotePanel] Selected vote:', selectedVote);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="vote-panel">
       {/* Vote Cards Grid */}
       <Card variant="outlined" padding="lg">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
