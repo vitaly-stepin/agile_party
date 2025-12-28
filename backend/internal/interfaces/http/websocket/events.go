@@ -10,18 +10,29 @@ const (
 	EventTypeClear          WsEventType = "clear"
 	EventTypeUpdateNickname WsEventType = "update_nickname"
 	EventTypeSetTask        WsEventType = "set_task"
+	EventTypeCreateTask     WsEventType = "create_task"
+	EventTypeUpdateTask     WsEventType = "update_task"
+	EventTypeDeleteTask     WsEventType = "delete_task"
+	EventTypeReorderTasks   WsEventType = "reorder_tasks"
+	EventTypeSetActiveTask  WsEventType = "set_active_task"
 )
 
 // Server Events
 const (
-	EventTypeRoomState     WsEventType = "room_state"
-	EventTypeUserJoined    WsEventType = "user_joined"
-	EventTypeUserLeft      WsEventType = "user_left"
-	EventTypeVoteSubmitted WsEventType = "vote_submitted"
-	EventTypeVotesRevealed WsEventType = "votes_revealed"
-	EventTypeVotesCleared  WsEventType = "votes_cleared"
-	EventTypeUserUpdated   WsEventType = "user_updated"
-	EventTypeError         WsEventType = "error"
+	EventTypeRoomState      WsEventType = "room_state"
+	EventTypeUserJoined     WsEventType = "user_joined"
+	EventTypeUserLeft       WsEventType = "user_left"
+	EventTypeVoteSubmitted  WsEventType = "vote_submitted"
+	EventTypeVotesRevealed  WsEventType = "votes_revealed"
+	EventTypeVotesCleared   WsEventType = "votes_cleared"
+	EventTypeUserUpdated    WsEventType = "user_updated"
+	EventTypeError          WsEventType = "error"
+	EventTypeTaskCreated    WsEventType = "task_created"
+	EventTypeTaskUpdated    WsEventType = "task_updated"
+	EventTypeTaskDeleted    WsEventType = "task_deleted"
+	EventTypeTasksReordered WsEventType = "tasks_reordered"
+	EventTypeActiveTaskSet  WsEventType = "active_task_set"
+	EventTypeTaskListSync   WsEventType = "task_list_sync"
 )
 
 type WsMessage struct {
@@ -93,4 +104,43 @@ type UserUpdatedPayload struct {
 type ErrorPayload struct {
 	Message string `json:"message"`
 	Code    string `json:"code,omitempty"`
+}
+
+type CreateTaskPayload struct {
+	Headline    string `json:"headline"`
+	Description string `json:"description,omitempty"`
+	TrackerLink string `json:"trackerLink,omitempty"`
+}
+
+type UpdateTaskPayload struct {
+	TaskID      string `json:"taskId"`
+	Headline    string `json:"headline,omitempty"`
+	Description string `json:"description,omitempty"`
+	TrackerLink string `json:"trackerLink,omitempty"`
+}
+
+type DeleteTaskPayload struct {
+	TaskID string `json:"taskId"`
+}
+
+type ReorderTasksPayload struct {
+	TaskIDs []string `json:"taskIds"`
+}
+
+type SetActiveTaskPayload struct {
+	TaskID string `json:"taskId"`
+}
+
+type TaskPayload struct {
+	ID          string `json:"id"`
+	RoomID      string `json:"roomId"`
+	Headline    string `json:"headline"`
+	Description string `json:"description,omitempty"`
+	TrackerLink string `json:"trackerLink,omitempty"`
+	Estimation  string `json:"estimation,omitempty"`
+	Position    int    `json:"position"`
+}
+
+type TaskListSyncPayload struct {
+	Tasks []TaskPayload `json:"tasks"`
 }

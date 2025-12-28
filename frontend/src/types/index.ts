@@ -56,8 +56,46 @@ export interface RoomState {
   taskDescription?: string;
 }
 
+// Task types
+export interface Task {
+  id: string;
+  roomId: string;
+  headline: string;
+  description?: string;
+  trackerLink?: string;
+  estimation?: string;
+  position: number;
+}
+
+export interface CreateTaskReq {
+  headline: string;
+  description?: string;
+  trackerLink?: string;
+}
+
+export interface UpdateTaskReq {
+  headline?: string;
+  description?: string;
+  trackerLink?: string;
+}
+
+export interface TaskListSyncPayload {
+  tasks: Task[];
+}
+
 // WebSocket event types
-export type ClientEventType = 'vote' | 'reveal' | 'clear' | 'update_nickname' | 'set_task';
+export type ClientEventType =
+  | 'vote'
+  | 'reveal'
+  | 'clear'
+  | 'update_nickname'
+  | 'set_task'
+  | 'create_task'
+  | 'update_task'
+  | 'delete_task'
+  | 'reorder_tasks'
+  | 'set_active_task';
+
 export type ServerEventType =
   | 'room_state'
   | 'user_joined'
@@ -66,7 +104,13 @@ export type ServerEventType =
   | 'votes_revealed'
   | 'votes_cleared'
   | 'user_updated'
-  | 'error';
+  | 'error'
+  | 'task_created'
+  | 'task_updated'
+  | 'task_deleted'
+  | 'tasks_reordered'
+  | 'active_task_set'
+  | 'task_list_sync';
 
 export interface ClientEvent<T = any> {
   type: ClientEventType;
