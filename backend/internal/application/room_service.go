@@ -113,3 +113,38 @@ func (s *RoomService) UpdateTaskDescription(ctx context.Context, roomID, descrip
 
 	return nil
 }
+
+func (s *RoomService) SetActiveTask(roomID, taskID string) error {
+	if roomID == "" {
+		return room.ErrInvalidRoomID
+	}
+
+	if !s.stateMgr.RoomExists(roomID) {
+		if err := s.stateMgr.NewRoom(roomID); err != nil {
+			return fmt.Errorf("failed to initialize room state: %w", err)
+		}
+	}
+
+	if err := s.stateMgr.SetActiveTask(roomID, taskID); err != nil {
+		return fmt.Errorf("failed to set active task: %w", err)
+	}
+
+	return nil
+}
+
+func (s *RoomService) GetActiveTask(roomID string) (string, error) {
+	if roomID == "" {
+		return "", room.ErrInvalidRoomID
+	}
+
+	if !s.stateMgr.RoomExists(roomID) {
+		return "", nil
+	}
+
+	taskID, err := s.stateMgr.GetActiveTask(roomID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get active task: %w", err)
+	}
+
+	return taskID, nil
+}

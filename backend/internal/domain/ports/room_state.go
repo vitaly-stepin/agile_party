@@ -10,6 +10,7 @@ type LiveRoomState struct {
 	Votes           map[string]string     // userID -> vote value
 	IsRevealed      bool
 	TaskDescription string
+	ActiveTaskID    string // ID of the task currently being estimated
 }
 
 type RoomStateManager interface {
@@ -28,4 +29,6 @@ type RoomStateManager interface {
 	RevealVotes(roomID string) error
 	ClearVotes(roomID string) error
 	UpdateTaskDescription(roomID, description string) error
+	SetActiveTask(roomID, taskID string) error
+	GetActiveTask(roomID string) (string, error)
 }

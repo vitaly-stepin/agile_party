@@ -88,18 +88,25 @@ export class RoomPage {
 
   async clickEditTask(taskHeadline: string): Promise<void> {
     const taskItem = await this.getTaskItem(taskHeadline);
-    const editButton = taskItem.locator('button', { hasText: 'Edit' });
-    await editButton.click({ force: true });
+    const editButton = taskItem.getByTestId('edit-task-button');
+    await editButton.click();
   }
 
   async updateTaskHeadline(oldHeadline: string, newHeadline: string): Promise<void> {
+    // First, make sure the task is active by clicking on it
+    await this.setTaskActive(oldHeadline);
+    await this.page.waitForTimeout(500); // Wait for task to become active
+
     const taskItem = await this.getTaskItem(oldHeadline);
-    const editButton = taskItem.locator('button', { hasText: 'Edit' });
-    await editButton.click({ force: true });
 
-    // Wait for edit mode to activate
-    await this.page.waitForTimeout(500);
+    // Ensure the edit button is visible and clickable
+    const editButton = taskItem.getByTestId('edit-task-button');
+    await editButton.waitFor({ state: 'visible', timeout: 5000 });
 
+    // Click the edit button
+    await editButton.click();
+
+    // Wait for the input to appear
     const input = taskItem.locator('input[type="text"]');
     await input.waitFor({ state: 'visible', timeout: 5000 });
     await input.fill(newHeadline);

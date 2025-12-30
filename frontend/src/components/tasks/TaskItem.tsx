@@ -1,20 +1,23 @@
-import React, { useState } from 'react';
-import type { Task } from '../../types';
-import { useWebSocket } from '../../hooks/useWebSocket';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import type { Task, ClientEvent } from '../../types';
 
 interface TaskItemProps {
   task: Task;
   isActive: boolean;
   onSetActive: () => void;
   onDelete: () => void;
+  sendEvent: (event: ClientEvent) => void;
 }
 
-export default function TaskItem({ task, isActive, onSetActive, onDelete }: TaskItemProps) {
-  const { roomId } = useParams<{ roomId: string }>();
-  const { sendEvent } = useWebSocket(roomId || '');
+export default function TaskItem({ task, isActive, onSetActive, onDelete, sendEvent }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [headline, setHeadline] = useState(task.headline);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setHeadline(task.headline);
+    }
+  }, [task.headline, isEditing]);
 
   const handleUpdate = () => {
     if (headline.trim() && headline !== task.headline) {
@@ -52,7 +55,7 @@ export default function TaskItem({ task, isActive, onSetActive, onDelete }: Task
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
               onBlur={handleUpdate}
-              onKeyPress={(e) => e.key === 'Enter' && handleUpdate()}
+              onKeyDown={(e) => e.key === 'Enter' && handleUpdate()}
               className="w-full px-2 py-1 border rounded"
               autoFocus
               onClick={(e) => e.stopPropagation()}
@@ -72,13 +75,20 @@ export default function TaskItem({ task, isActive, onSetActive, onDelete }: Task
             </span>
           )}
           <button
-            onClick={() => setIsEditing(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
             className="p-1 hover:bg-gray-100 rounded"
+            data-testid="edit-task-button"
           >
             Edit
           </button>
           <button
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             className="p-1 hover:bg-red-100 text-red-600 rounded"
           >
             Delete

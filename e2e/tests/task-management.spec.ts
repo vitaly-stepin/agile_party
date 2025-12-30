@@ -185,7 +185,9 @@ test.describe('Task Management', () => {
     await roomPage.createTask(originalHeadline);
     await roomPage.waitForTaskToAppear(originalHeadline);
 
-    // Action: Start editing task
+    // Action: Make task active first, then start editing
+    await roomPage.setTaskActive(originalHeadline);
+    await page.waitForTimeout(500);
     await roomPage.clickEditTask(originalHeadline);
 
     const taskItem = await roomPage.getTaskItem(originalHeadline);

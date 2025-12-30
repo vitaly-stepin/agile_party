@@ -192,6 +192,38 @@ func (h *WsHandler) handleVote(ctx context.Context, client *Client, msg WsMessag
 		Payload: h.convertRoomStateToPayload(roomState),
 	}, nil)
 
+	// If votes are already revealed, recalculate and broadcast updated results
+	if roomState.IsRevealed {
+		result, err := h.votingService.RevealVotes(ctx, client.RoomID)
+		if err != nil {
+			return fmt.Errorf("failed to recalculate votes: %w", err)
+		}
+
+		votes := make([]VoteInfo, 0, len(result.Votes))
+		for userID, voteValue := range result.Votes {
+			userName := ""
+			for _, user := range roomState.Users {
+				if user.UserID == userID {
+					userName = user.Name
+					break
+				}
+			}
+			votes = append(votes, VoteInfo{
+				UserID:   userID,
+				Value:    voteValue,
+				UserName: userName,
+			})
+		}
+
+		h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+			Type: EventTypeVotesRevealed,
+			Payload: VotesRevealedPayload{
+				Votes:   votes,
+				Average: result.Average,
+			},
+		}, nil)
+	}
+
 	return nil
 }
 
@@ -206,17 +238,6 @@ func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 		return fmt.Errorf("failed to get room state: %w", err)
 	}
 
-	// Save estimation to active task if votes were cast
-	taskUpdated := false
-	if len(result.Votes) > 0 {
-		estimation := h.determineEstimation(result)
-		if err := h.taskService.SaveEstimation(ctx, client.RoomID, estimation); err != nil {
-			log.Printf("Warning: failed to save estimation on reveal: %v", err)
-		} else {
-			taskUpdated = true
-		}
-	}
-
 	votes := make([]VoteInfo, 0, len(result.Votes))
 	for userID, voteValue := range result.Votes {
 		userName := ""
@@ -229,7 +250,7 @@ func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 		votes = append(votes, VoteInfo{
 			UserID:   userID,
 			Value:    voteValue,
-			Nickname: userName,
+			UserName: userName,
 		})
 	}
 
@@ -241,28 +262,50 @@ func (h *WsHandler) handleReveal(ctx context.Context, client *Client) error {
 		},
 	}, nil)
 
-	// Broadcast updated task list to show the new estimation
-	if taskUpdated {
-		tasks, err := h.taskService.GetRoomTasks(ctx, client.RoomID)
-		if err == nil {
-			taskPayloads := make([]TaskPayload, len(tasks))
-			for i, task := range tasks {
-				taskPayloads[i] = convertTaskToPayload(task)
-			}
-			h.hub.BroadcastToRoom(client.RoomID, WsMessage{
-				Type: EventTypeTaskListSync,
-				Payload: TaskListSyncPayload{
-					Tasks: taskPayloads,
-				},
-			}, nil)
-		}
-	}
-
 	return nil
 }
 
 func (h *WsHandler) handleClear(ctx context.Context, client *Client) error {
-	// Clear votes (estimation was already saved on reveal)
+	// Get current state to check for votes
+	state, err := h.roomService.GetRoomState(ctx, client.RoomID)
+	if err != nil {
+		return fmt.Errorf("failed to get room state: %w", err)
+	}
+
+	// Save estimation to active task if votes were cast and revealed
+	taskUpdated := false
+	if state.IsRevealed && len(state.Votes) > 0 {
+		// Calculate result to determine estimation
+		result, err := h.votingService.RevealVotes(ctx, client.RoomID)
+		if err != nil {
+			log.Printf("Warning: failed to get vote result: %v", err)
+		} else {
+			estimation := h.determineEstimation(result)
+
+			// Get the active task ID from room state
+			activeTaskID, err := h.roomService.GetActiveTask(client.RoomID)
+			if err != nil {
+				log.Printf("Warning: failed to get active task: %v", err)
+			}
+
+			// Save estimation to the active task if set, otherwise fallback to next unestimated
+			if activeTaskID != "" {
+				if err := h.taskService.SaveEstimationToTask(ctx, activeTaskID, estimation); err != nil {
+					log.Printf("Warning: failed to save estimation to active task: %v", err)
+				} else {
+					taskUpdated = true
+				}
+			} else {
+				if err := h.taskService.SaveEstimation(ctx, client.RoomID, estimation); err != nil {
+					log.Printf("Warning: failed to save estimation: %v", err)
+				} else {
+					taskUpdated = true
+				}
+			}
+		}
+	}
+
+	// Clear votes
 	if err := h.votingService.ClearVotes(ctx, client.RoomID); err != nil {
 		return fmt.Errorf("failed to clear votes: %w", err)
 	}
@@ -298,17 +341,25 @@ func (h *WsHandler) handleClear(ctx context.Context, client *Client) error {
 	}, nil)
 
 	// Broadcast updated task list to show saved estimations
-	if tasks != nil {
-		taskPayloads := make([]TaskPayload, len(tasks))
-		for i, task := range tasks {
-			taskPayloads[i] = convertTaskToPayload(task)
+	if taskUpdated || tasks != nil {
+		if tasks == nil {
+			tasks, err = h.taskService.GetRoomTasks(ctx, client.RoomID)
+			if err != nil {
+				log.Printf("Warning: failed to get tasks for broadcast: %v", err)
+			}
 		}
-		h.hub.BroadcastToRoom(client.RoomID, WsMessage{
-			Type: EventTypeTaskListSync,
-			Payload: TaskListSyncPayload{
-				Tasks: taskPayloads,
-			},
-		}, nil)
+		if tasks != nil {
+			taskPayloads := make([]TaskPayload, len(tasks))
+			for i, task := range tasks {
+				taskPayloads[i] = convertTaskToPayload(task)
+			}
+			h.hub.BroadcastToRoom(client.RoomID, WsMessage{
+				Type: EventTypeTaskListSync,
+				Payload: TaskListSyncPayload{
+					Tasks: taskPayloads,
+				},
+			}, nil)
+		}
 	}
 
 	// If there's a next task, broadcast that too
@@ -406,7 +457,7 @@ func (h *WsHandler) convertRoomStateToPayload(state *dto.RoomStateResp) RoomStat
 		votes[i] = VoteInfo{
 			UserID:   vote.UserID,
 			Value:    vote.Value,
-			Nickname: vote.UserName,
+			UserName: vote.UserName,
 		}
 	}
 
@@ -526,6 +577,11 @@ func (h *WsHandler) handleSetActiveTask(ctx context.Context, client *Client, msg
 	var payload SetActiveTaskPayload
 	if err := unmarshalPayload(msg.Payload, &payload); err != nil {
 		return fmt.Errorf("invalid set active task payload: %w", err)
+	}
+
+	// Set the active task in room state
+	if err := h.roomService.SetActiveTask(client.RoomID, payload.TaskID); err != nil {
+		log.Printf("Warning: failed to set active task: %v", err)
 	}
 
 	h.hub.BroadcastToRoom(client.RoomID, WsMessage{

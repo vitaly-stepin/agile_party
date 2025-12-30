@@ -100,7 +100,7 @@ export default function ResultsDisplay({ onClear }: ResultsDisplayProps) {
         {/* Clear Button */}
         <div className="mt-6 pt-4 border-t border-gray-200">
           <Button onClick={onClear} variant="primary" fullWidth>
-            Clear Votes & Start New Round
+            Next Round
           </Button>
         </div>
       </Card>

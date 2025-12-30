@@ -69,10 +69,18 @@ export class WebSocketClient {
 
       this.ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as ServerEvent;
-          this.onMessage(data);
+          // Backend may send multiple JSON messages separated by newlines in a single WebSocket frame
+          const messages = event.data.trim().split('\n');
+          for (const messageStr of messages) {
+            if (messageStr.trim()) {
+              const data = JSON.parse(messageStr) as ServerEvent;
+              this.onMessage(data);
+            }
+          }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
+          console.error('Raw message data:', event.data);
+          console.error('Message type:', typeof event.data);
         }
       };
 
@@ -182,6 +190,7 @@ export class WebSocketClient {
     }
 
     try {
+      console.log('[WS] Sending event:', event.type, event.payload);
       this.ws.send(JSON.stringify(event));
     } catch (error) {
       console.error('Failed to send WebSocket message:', error);

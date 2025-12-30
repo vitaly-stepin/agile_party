@@ -1,10 +1,10 @@
 ## Collaboration & Coding Guidelines
 
 1. Clarification First
-If any part of my request is ambiguous, incomplete, or could reasonably be interpreted in multiple ways, you must ask clarifying questions before proceeding. Do not make assumptions.
+If any part of my request is ambiguous, incomplete, or could reasonably be interpreted in multiple ways, you must ask clarifying questions before proceeding.
 
 2. Critical Evaluation of Suggestions
-You are expected to reason critically about my suggestions:
+You are expected to reason critically about my suggestions, challenge them be brutally honest:
 - Apply them only if they are technically sound and beneficial.
 - If a better or more robust alternative exists, propose it clearly and explain why.
 - Do not follow instructions blindly; prioritize correctness and maintainability.
@@ -16,8 +16,7 @@ You are expected to reason critically about my suggestions:
 
 4. Performance & Optimization
 - Write performance-conscious code with attention to latency
-- Avoid premature optimization, but eliminate obvious bottlenecks
-- Explicitly call out trade-offs when optimizing
+- Stop and eliminate obvious bottlenecks
 - In Go: be mindful of allocations, use goroutines judiciously for concurrent operations
 
 5. Error Handling
@@ -25,7 +24,7 @@ You are expected to reason critically about my suggestions:
 - Frontend: handle error states in UI, provide meaningful user feedback
 
 6. Testing Philosophy
-- Write tests for non-trivial business logic and critical paths
+- Write comprehensive tests for non-trivial business logic and critical paths
 - Prioritize integration tests for core workflows
 - Unit tests for complex algorithms or edge cases
 

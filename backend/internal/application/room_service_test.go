@@ -48,19 +48,21 @@ func (m *mockRoomRepo) Exists(ctx context.Context, id string) (bool, error) {
 
 // Mock RoomStateManager
 type mockStateManager struct {
-	newRoomFunc      func(roomID string) error
-	getRoomStateFunc func(roomID string) (*ports.LiveRoomState, error)
-	roomExistsFunc   func(roomID string) bool
-	deleteRoomFunc   func(roomID string) error
-	addUserFunc      func(roomID string, user *room.User) error
-	removeUserFunc   func(roomID, userID string) error
-	getUserFunc      func(roomID, userID string) (*room.User, error)
-	updateUserFunc   func(roomID string, user *room.User) error
-	getUserCountFunc func(roomID string) (int, error)
-	submitVoteFunc          func(roomID, userID, voteValue string) error
-	revealVotesFunc         func(roomID string) error
-	clearVotesFunc          func(roomID string) error
-	updateTaskDescFunc      func(roomID, description string) error
+	newRoomFunc        func(roomID string) error
+	getRoomStateFunc   func(roomID string) (*ports.LiveRoomState, error)
+	roomExistsFunc     func(roomID string) bool
+	deleteRoomFunc     func(roomID string) error
+	addUserFunc        func(roomID string, user *room.User) error
+	removeUserFunc     func(roomID, userID string) error
+	getUserFunc        func(roomID, userID string) (*room.User, error)
+	updateUserFunc     func(roomID string, user *room.User) error
+	getUserCountFunc   func(roomID string) (int, error)
+	submitVoteFunc     func(roomID, userID, voteValue string) error
+	revealVotesFunc    func(roomID string) error
+	clearVotesFunc     func(roomID string) error
+	updateTaskDescFunc func(roomID, description string) error
+	setActiveTaskFunc  func(roomID, taskID string) error
+	getActiveTaskFunc  func(roomID string) (string, error)
 }
 
 func (m *mockStateManager) NewRoom(roomID string) error {
@@ -157,6 +159,20 @@ func (m *mockStateManager) UpdateTaskDescription(roomID, description string) err
 		return m.updateTaskDescFunc(roomID, description)
 	}
 	return nil
+}
+
+func (m *mockStateManager) SetActiveTask(roomID, taskID string) error {
+	if m.setActiveTaskFunc != nil {
+		return m.setActiveTaskFunc(roomID, taskID)
+	}
+	return nil
+}
+
+func (m *mockStateManager) GetActiveTask(roomID string) (string, error) {
+	if m.getActiveTaskFunc != nil {
+		return m.getActiveTaskFunc(roomID)
+	}
+	return "", nil
 }
 
 // Tests for RoomService

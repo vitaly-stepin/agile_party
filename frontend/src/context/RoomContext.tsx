@@ -60,7 +60,7 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
       const response = await api.newRoom(request);
 
       // Convert NewRoomResponse to Room format
-      const newRoom: Room = {
+      const newRoomData: Room = {
         id: response.id,
         name: response.name,
         voting_system: response.voting_system,
@@ -69,16 +69,19 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
         updated_at: response.created_at,
       };
 
-      setRoom(newRoom);
-
       // Generate a user ID for the creator
       const userId = crypto.randomUUID();
-      setCurrentUserId(userId);
-      setCurrentUser({
+      const user: User = {
         id: userId,
         name: nickname,
         isVoted: false,
-      });
+      };
+
+      // Batch state updates using React 18's automatic batching
+      // This ensures all three updates happen in a single render cycle
+      setRoom(newRoomData);
+      setCurrentUserId(userId);
+      setCurrentUser(user);
 
       return response.id;
     } catch (err) {
@@ -97,16 +100,20 @@ export const RoomProvider: React.FC<RoomProviderProps> = ({ children }) => {
     try {
       // Fetch room details
       const roomData = await api.getRoom(roomId);
-      setRoom(roomData);
 
       // Generate a user ID
       const userId = crypto.randomUUID();
-      setCurrentUserId(userId);
-      setCurrentUser({
+      const user: User = {
         id: userId,
         name: nickname,
         isVoted: false,
-      });
+      };
+
+      // Batch state updates using React 18's automatic batching
+      // This ensures all three updates happen in a single render cycle
+      setRoom(roomData);
+      setCurrentUserId(userId);
+      setCurrentUser(user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to join room';
       setError(errorMessage);

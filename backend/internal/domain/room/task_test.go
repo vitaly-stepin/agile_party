@@ -41,6 +41,7 @@ func TestNewTask(t *testing.T) {
 func TestTaskSetEstimation(t *testing.T) {
 	task, _ := NewTask("room123", "Test task", 1)
 
+	// Valid vote value
 	err := task.SetEstimation("5", DbsFibo)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
@@ -49,8 +50,18 @@ func TestTaskSetEstimation(t *testing.T) {
 		t.Errorf("Expected estimation '5', got '%s'", task.Estimation)
 	}
 
-	err = task.SetEstimation("999", DbsFibo)
-	if err == nil {
-		t.Error("Expected error for invalid vote value")
+	// Calculated average (not a valid vote but valid estimation)
+	err = task.SetEstimation("3.5", DbsFibo)
+	if err != nil {
+		t.Errorf("Expected no error for calculated average, got: %v", err)
+	}
+	if task.Estimation != "3.5" {
+		t.Errorf("Expected estimation '3.5', got '%s'", task.Estimation)
+	}
+
+	// Any string value should be allowed as estimation
+	err = task.SetEstimation("4.2", DbsFibo)
+	if err != nil {
+		t.Errorf("Expected no error for any estimation value, got: %v", err)
 	}
 }

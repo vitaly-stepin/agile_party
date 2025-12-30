@@ -35,12 +35,16 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
   }, []);
 
   const addTask = useCallback((task: Task) => {
+    console.log('[TaskContext] Adding task:', task);
     setTasksInternal(prev => {
       // Check if task already exists to prevent duplicates
       if (prev.some(t => t.id === task.id)) {
+        console.log('[TaskContext] Task already exists, skipping');
         return prev;
       }
-      return [...prev, task].sort((a, b) => a.position - b.position);
+      const newTasks = [...prev, task].sort((a, b) => a.position - b.position);
+      console.log('[TaskContext] New tasks list:', newTasks);
+      return newTasks;
     });
   }, []);
 
