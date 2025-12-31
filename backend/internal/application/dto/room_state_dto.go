@@ -15,7 +15,7 @@ type RoomStateResp struct {
 	Average         *float64   `json:"average,omitempty"`
 }
 
-func FromDomainRoomState(state *ports.LiveRoomState) *RoomStateResp {
+func FromDomainRoomState(state *ports.LiveRoomState, votingSystem room.VotingSystem) *RoomStateResp {
 	if state == nil {
 		return nil
 	}
@@ -38,9 +38,9 @@ func FromDomainRoomState(state *ports.LiveRoomState) *RoomStateResp {
 
 	var average *float64
 	if state.IsRevealed && len(state.Votes) > 0 {
-		estimationSvc := room.NewEstimationService()
-		avg, err := estimationSvc.CalculateAverage(state.Votes, room.DbsFibo)
-		if err == nil && avg > 0 {
+		estimationService := room.NewEstimationService()
+		avg, err := estimationService.CalculateAverage(state.Votes, votingSystem)
+		if err == nil && avg >= 0 {
 			average = &avg
 		}
 	}
