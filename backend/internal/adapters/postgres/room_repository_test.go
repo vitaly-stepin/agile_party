@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -12,12 +13,22 @@ import (
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()
 
+	host := "postgres"
+	if h := os.Getenv("DB_HOST"); h != "" {
+		host = h
+	}
+
+	dbName := "agile_party"
+	if db := os.Getenv("DB_NAME"); db != "" {
+		dbName = db
+	}
+
 	cfg := &config.DatabaseConfig{
-		Host:            "postgres",
+		Host:            host,
 		Port:            "5432",
 		User:            "postgres",
 		Password:        "postgres",
-		DBName:          "agile_party",
+		DBName:          dbName,
 		SSLMode:         "disable",
 		MaxOpenConns:    5,
 		MaxIdleConns:    2,

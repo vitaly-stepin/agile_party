@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs clean test shell-db migrate
+.PHONY: help up down restart logs clean test shell-db migrate e2e-setup e2e-test e2e-teardown
 
 help:
 	@echo "Available commands:"
@@ -10,6 +10,9 @@ help:
 	@echo "  make test            - Run all Go tests with coverage and summary"
 	@echo "  make shell-db        - Open PostgreSQL shell"
 	@echo "  make migrate         - Run database migrations"
+	@echo "  make e2e-setup       - Start E2E test environment"
+	@echo "  make e2e-test        - Run E2E tests"
+	@echo "  make e2e-teardown    - Stop E2E test environment"
 
 up:
 	docker compose up -d
@@ -47,3 +50,12 @@ shell-db:
 migrate:
 	@echo "Migrations run automatically on postgres container startup"
 	@echo "Check: ./backend/internal/adapters/postgres/migrations"
+
+e2e-setup:
+	./scripts/e2e-setup.sh
+
+e2e-test:
+	cd e2e && npm test
+
+e2e-teardown:
+	./scripts/e2e-teardown.sh

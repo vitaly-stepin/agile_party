@@ -182,6 +182,28 @@ func (s *TaskService) SaveEstimation(ctx context.Context, roomID, estimation str
 	return nil
 }
 
+func (s *TaskService) SaveEstimationToTask(ctx context.Context, taskID, estimation string) error {
+	task, err := s.taskRepo.GetByID(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	rm, err := s.roomRepo.GetByID(ctx, task.RoomID)
+	if err != nil {
+		return fmt.Errorf("failed to get room: %w", err)
+	}
+
+	if err := task.SetEstimation(estimation, rm.VotingSystem); err != nil {
+		return fmt.Errorf("failed to set estimation: %w", err)
+	}
+
+	if err := s.taskRepo.Update(ctx, task); err != nil {
+		return fmt.Errorf("failed to save estimation: %w", err)
+	}
+
+	return nil
+}
+
 func (s *TaskService) SaveEstimationAndMoveNext(ctx context.Context, roomID, estimation string) (*dto.TaskResp, error) {
 	rm, err := s.roomRepo.GetByID(ctx, roomID)
 	if err != nil {

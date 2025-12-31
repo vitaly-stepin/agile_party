@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Button, Input } from '../components/common';
 import { useRoom } from '../context/RoomContext';
@@ -9,13 +9,14 @@ import ResultsDisplay from '../components/estimation/ResultsDisplay';
 import TaskList from '../components/tasks/TaskList';
 import { TaskProvider } from '../context/TaskContext';
 
-export default function Room() {
+function RoomContent() {
   const { roomId } = useParams<{ roomId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { room, roomState, currentUser, joinRoom, error } = useRoom();
   const [taskDescription, setTaskDescription] = useState('');
   const [isEditingTask, setIsEditingTask] = useState(false);
+  const hasJoined = useRef(false);
 
   const { isConnected, sendEvent } = useWebSocket(roomId || '');
 
@@ -26,10 +27,12 @@ export default function Room() {
     }
 
     const nickname = searchParams.get('nickname');
-    if (nickname) {
+    if (nickname && !hasJoined.current) {
+      hasJoined.current = true;
       joinRoom(roomId, nickname);
     }
-  }, [roomId, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   const handleSetTask = () => {
     if (taskDescription.trim()) {
@@ -87,7 +90,6 @@ export default function Room() {
   }
 
   return (
-    <TaskProvider>
       <div className="min-h-screen bg-gray-50 pb-8">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 mb-6">
@@ -137,7 +139,7 @@ export default function Room() {
 
             {/* Middle Column - Tasks */}
             <div className="lg:col-span-1">
-              <TaskList />
+              <TaskList sendEvent={sendEvent} />
             </div>
 
             {/* Right Column - Voting */}
@@ -181,16 +183,24 @@ export default function Room() {
                 )}
               </Card>
 
-              {/* Results or Voting */}
-              {roomState?.isRevealed ? (
+              {/* Results (when revealed) */}
+              {roomState?.isRevealed && (
                 <ResultsDisplay onClear={handleClear} />
-              ) : (
-                <VotePanel onReveal={handleReveal} sendEvent={sendEvent} />
               )}
+
+              {/* Voting Panel (always shown) */}
+              <VotePanel onReveal={handleReveal} sendEvent={sendEvent} />
             </div>
           </div>
         </div>
       </div>
+  );
+}
+
+export default function Room() {
+  return (
+    <TaskProvider>
+      <RoomContent />
     </TaskProvider>
   );
 }

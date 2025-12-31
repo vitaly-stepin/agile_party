@@ -72,7 +72,7 @@ type UserPayload struct {
 type VoteInfo struct {
 	UserID   string `json:"userId"`
 	Value    string `json:"value"`
-	Nickname string `json:"nickname"`
+	UserName string `json:"userName"`
 }
 
 type UserJoinedPayload struct {

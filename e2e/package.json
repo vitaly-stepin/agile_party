@@ -1,0 +1,17 @@
+{
+  "name": "agile-party-e2e",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen http://localhost:5174"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.41.0",
+    "pg": "^8.11.3",
+    "typescript": "^5.3.3"
+  }
+}

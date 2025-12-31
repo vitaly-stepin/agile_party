@@ -15,6 +15,7 @@ type liveRoom struct {
 	votes           map[string]string
 	isRevealed      bool
 	taskDescription string
+	activeTaskID    string
 	lastAccess      time.Time
 }
 
@@ -54,6 +55,7 @@ func (m *RoomStateManager) NewRoom(roomID string) error {
 		votes:           make(map[string]string),
 		isRevealed:      false,
 		taskDescription: "",
+		activeTaskID:    "",
 		lastAccess:      time.Now(),
 	}
 
@@ -89,6 +91,7 @@ func (m *RoomStateManager) GetRoomState(roomID string) (*ports.LiveRoomState, er
 		Votes:           votesCopy,
 		IsRevealed:      r.isRevealed,
 		TaskDescription: r.taskDescription,
+		ActiveTaskID:    r.activeTaskID,
 	}, nil
 }
 
@@ -253,6 +256,7 @@ func (m *RoomStateManager) ClearVotes(roomID string) error {
 
 	r.votes = make(map[string]string)
 	r.isRevealed = false
+	r.activeTaskID = ""
 
 	for _, user := range r.users {
 		user.IsVoted = false
@@ -299,6 +303,33 @@ func (m *RoomStateManager) cleanup() {
 			delete(m.rooms, roomID)
 		}
 	}
+}
+
+func (m *RoomStateManager) SetActiveTask(roomID, taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	r, exists := m.rooms[roomID]
+	if !exists {
+		return fmt.Errorf("room not found: %s", roomID)
+	}
+
+	r.activeTaskID = taskID
+	r.lastAccess = time.Now()
+
+	return nil
+}
+
+func (m *RoomStateManager) GetActiveTask(roomID string) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	r, exists := m.rooms[roomID]
+	if !exists {
+		return "", fmt.Errorf("room not found: %s", roomID)
+	}
+
+	return r.activeTaskID, nil
 }
 
 func (m *RoomStateManager) Stats() map[string]interface{} {

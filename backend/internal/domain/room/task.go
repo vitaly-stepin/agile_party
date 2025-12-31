@@ -67,11 +67,7 @@ func (t *Task) UpdateTrackerLink(link string) {
 
 func (t *Task) SetEstimation(value string, votingSystem VotingSystem) error {
 	if value != "" {
-		vote, err := CreateVote(value, votingSystem)
-		if err != nil {
-			return err
-		}
-		t.Estimation = vote.Value
+		t.Estimation = strings.TrimSpace(value)
 	}
 	return nil
 }

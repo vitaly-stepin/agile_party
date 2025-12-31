@@ -26,6 +26,7 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
   const setActiveTask = taskContext?.setActiveTask;
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const wsClient = useRef<WebSocketClient | null>(null);
+  const hasInitialized = useRef(false);
 
   // Use refs to store latest callback values without triggering re-renders
   const setRoomStateRef = useRef(setRoomState);
@@ -69,8 +70,7 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
 
   const handleMessage = useCallback(
     (event: ServerEvent) => {
-      console.log('Received WebSocket event:', event.type, event.payload);
-
+      console.log('[WS] Received event:', event.type, event.payload);
       switch (event.type) {
         case 'room_state': {
           // Initial room state sync
@@ -82,7 +82,6 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
         case 'user_left':
         case 'user_updated': {
           // Refresh room state from server
-          console.log('User event received:', event.type);
           fetchRoomState();
           break;
         }
@@ -90,9 +89,6 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
         case 'vote_submitted': {
           // Update voting status immediately from event payload
           const { userId, hasVoted } = event.payload;
-          console.log(`Vote submitted by user ${userId}, hasVoted: ${hasVoted}`);
-
-          // Update user's vote status immediately without API call
           updateUserVoteStatusRef.current(userId, hasVoted);
           break;
         }
@@ -100,7 +96,6 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
         case 'votes_revealed': {
           // Show votes and average
           const { votes, average } = event.payload;
-          console.log('Votes revealed:', { votes, average });
           updateVotesRef.current(votes);
           setRevealedRef.current(true, average);
           break;
@@ -188,14 +183,22 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
   );
 
   const handleStateChange = useCallback((state: ConnectionState) => {
-    console.log('WebSocket state changed:', state);
     setConnectionState(state);
   }, []);
 
   useEffect(() => {
-    if (!roomId || !currentUserId || !currentUser) {
+    if (!roomId || !currentUserId || !currentUser?.name) {
       return;
     }
+
+    // Only create connection once per component lifecycle
+    if (hasInitialized.current) {
+      console.log('[WS] Already initialized, skipping');
+      return;
+    }
+
+    console.log('[WS] Creating new WebSocket connection');
+    hasInitialized.current = true;
 
     // Create WebSocket client
     wsClient.current = new WebSocketClient({
@@ -211,16 +214,20 @@ export const useWebSocket = (roomId: string): UseWebSocketReturn => {
     // Connect
     wsClient.current.connect();
 
-    // Cleanup on unmount
+    // Cleanup only on unmount
     return () => {
+      console.log('[WS] Component unmounting, cleaning up WebSocket');
+      hasInitialized.current = false;
       if (wsClient.current) {
         wsClient.current.disconnect();
         wsClient.current = null;
       }
     };
-    // Only reconnect when roomId, userId, or nickname changes - not on every render
+    // Only reconnect when roomId or userId changes
+    // handleMessage and handleStateChange are intentionally not in deps to avoid reconnection
+    // They use refs internally to access latest state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, currentUserId, currentUser?.name]);
+  }, [roomId, currentUserId]);
 
   const sendEvent = useCallback((event: ClientEvent) => {
     if (wsClient.current?.send) {
