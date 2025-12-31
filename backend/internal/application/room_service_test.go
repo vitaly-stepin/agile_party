@@ -412,3 +412,97 @@ func TestRoomService_GetRoomState_RoomNotFound(t *testing.T) {
 		t.Errorf("expected ErrRoomNotFound, got %v", err)
 	}
 }
+
+func TestRoomService_GetRoomState_UsesCorrectVotingSystem(t *testing.T) {
+	roomID := "test1234"
+
+	// Create a room with DbsFibo voting system
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
+		VotingSystem: room.DbsFibo,
+		AutoReveal:   false,
+	})
+
+	repo := &mockRoomRepo{
+		getFunc: func(ctx context.Context, id string) (*room.Room, error) {
+			return testRoom, nil
+		},
+	}
+	stateMgr := &mockStateManager{
+		roomExistsFunc: func(rID string) bool {
+			return true
+		},
+		getRoomStateFunc: func(rID string) (*ports.LiveRoomState, error) {
+			return &ports.LiveRoomState{
+				RoomID: roomID,
+				Users:  make(map[string]*room.User),
+				Votes: map[string]string{
+					"user1": "5",
+					"user2": "8",
+				},
+				IsRevealed: true,
+			}, nil
+		},
+	}
+	service := NewRoomService(repo, stateMgr)
+
+	resp, err := service.GetRoomState(context.Background(), roomID)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if resp.Average == nil {
+		t.Fatal("expected average, got nil")
+	}
+	// With DbsFibo: votes [5,8] -> avg 6.5 -> rounds to 8.0
+	expectedAvg := 8.0
+	if *resp.Average != expectedAvg {
+		t.Errorf("expected average %.1f (rounded), got %.1f", expectedAvg, *resp.Average)
+	}
+}
+
+func TestRoomService_GetRoomState_FibonacciDoesNotRound(t *testing.T) {
+	roomID := "test1234"
+
+	// Create a room with Fibonacci voting system (not DbsFibo)
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
+		VotingSystem: room.Fibonacci,
+		AutoReveal:   false,
+	})
+
+	repo := &mockRoomRepo{
+		getFunc: func(ctx context.Context, id string) (*room.Room, error) {
+			return testRoom, nil
+		},
+	}
+	stateMgr := &mockStateManager{
+		roomExistsFunc: func(rID string) bool {
+			return true
+		},
+		getRoomStateFunc: func(rID string) (*ports.LiveRoomState, error) {
+			return &ports.LiveRoomState{
+				RoomID: roomID,
+				Users:  make(map[string]*room.User),
+				Votes: map[string]string{
+					"user1": "5",
+					"user2": "8",
+				},
+				IsRevealed: true,
+			}, nil
+		},
+	}
+	service := NewRoomService(repo, stateMgr)
+
+	resp, err := service.GetRoomState(context.Background(), roomID)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if resp.Average == nil {
+		t.Fatal("expected average, got nil")
+	}
+	// With Fibonacci: votes [5,8] -> avg 6.5 (NOT rounded)
+	expectedAvg := 6.5
+	if *resp.Average != expectedAvg {
+		t.Errorf("expected average %.1f (not rounded for Fibonacci), got %.1f", expectedAvg, *resp.Average)
+	}
+}

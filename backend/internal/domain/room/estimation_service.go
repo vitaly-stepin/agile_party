@@ -1,21 +1,19 @@
 package room
 
-import "math"
-
 type EstimationService struct{}
 
 func NewEstimationService() *EstimationService {
 	return &EstimationService{}
 }
 
-// Calculates the average of votes, excluding "?" votes
+// Calculates the average of votes based on DBS Fibonacci algorithm, excluding "?" votes
 func (s *EstimationService) CalculateAverage(votes map[string]string, votingSystem VotingSystem) (float64, error) {
 	if len(votes) == 0 {
 		return 0, ErrNoVotes
 	}
 
-	var votes_sum float64
-	var total_votes int
+	var votesSum float64
+	var totalVotes int
 
 	for _, voteValue := range votes {
 		vote, err := CreateVote(voteValue, votingSystem)
@@ -27,21 +25,27 @@ func (s *EstimationService) CalculateAverage(votes map[string]string, votingSyst
 			if err != nil {
 				return 0, err
 			}
-			votes_sum += floatValue
-			total_votes++
+			votesSum += floatValue
+			totalVotes++
 		}
 	}
 
 	// If all votes were "?", return 0
-	if total_votes == 0 {
+	if totalVotes == 0 {
+		return 0, nil
+	}
+	if votesSum == 0 {
 		return 0, nil
 	}
 
-	// Add support for more average calculation strategies later
-	average := votes_sum / float64(total_votes)
-	average = math.Round(average*100) / 100
-
-	return average, nil
+	average := votesSum / float64(totalVotes)
+	switch votingSystem {
+	case DbsFibo:
+		average = RoundToClosestDbsFiboVote(average)
+		return average, nil
+	default:
+		return average, nil
+	}
 }
 
 func (s *EstimationService) ValidateAllVotes(votes map[string]string, votingSystem VotingSystem) error {

@@ -22,7 +22,7 @@ func TestEstimationService_CalculateAverage(t *testing.T) {
 				"user3": "5",
 			},
 			votingSystem:  DbsFibo,
-			expectedAvg:   6.0,
+			expectedAvg:   5.0, // avg 6.0 rounds to 5.0 (closer to 5 than to 8)
 			expectedError: false,
 		},
 		{
@@ -33,7 +33,7 @@ func TestEstimationService_CalculateAverage(t *testing.T) {
 				"user3": "8",
 			},
 			votingSystem:  DbsFibo,
-			expectedAvg:   6.5,
+			expectedAvg:   8.0, // avg 6.5 rounds to 8.0 (equidistant, rounds up)
 			expectedError: false,
 		},
 		{
@@ -62,7 +62,7 @@ func TestEstimationService_CalculateAverage(t *testing.T) {
 				"user3": "2",
 			},
 			votingSystem:  DbsFibo,
-			expectedAvg:   1.17,
+			expectedAvg:   1.0, // avg 1.17 rounds to 1.0 (closer to 1 than to 2)
 			expectedError: false,
 		},
 		{
@@ -92,7 +92,84 @@ func TestEstimationService_CalculateAverage(t *testing.T) {
 				"user3": "100",
 			},
 			votingSystem:  DbsFibo,
-			expectedAvg:   80.0,
+			expectedAvg:   100.0, // avg 80.0 rounds to 100.0 (closer to 100 than to 40)
+			expectedError: false,
+		},
+		// User-provided examples
+		{
+			name: "user example 1: [5,3] -> 5",
+			votes: map[string]string{
+				"user1": "5",
+				"user2": "3",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   5.0, // avg 4.0 equidistant, rounds up to 5
+			expectedError: false,
+		},
+		{
+			name: "user example 2: [13,5,5] -> 8",
+			votes: map[string]string{
+				"user1": "13",
+				"user2": "5",
+				"user3": "5",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   8.0, // avg 7.67 rounds to 8
+			expectedError: false,
+		},
+		{
+			name: "user example 3: [5,1,1] -> 2",
+			votes: map[string]string{
+				"user1": "5",
+				"user2": "1",
+				"user3": "1",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   2.0, // avg 2.33 rounds to 2
+			expectedError: false,
+		},
+		// Zero votes bug fix test
+		{
+			name: "all zero votes",
+			votes: map[string]string{
+				"user1": "0",
+				"user2": "0",
+				"user3": "0",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   0.0, // should return 0.0, not be treated as "no numeric votes"
+			expectedError: false,
+		},
+		// Additional edge cases
+		{
+			name: "mixed zeros and other values",
+			votes: map[string]string{
+				"user1": "0",
+				"user2": "0",
+				"user3": "1",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   0.5, // avg 0.33 rounds to 0.5 (closer to 0.5 than to 0)
+			expectedError: false,
+		},
+		{
+			name: "equidistant case: [1,2] -> 2",
+			votes: map[string]string{
+				"user1": "1",
+				"user2": "2",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   2.0, // avg 1.5 equidistant, rounds up to 2
+			expectedError: false,
+		},
+		{
+			name: "equidistant case: [8,13] -> 13",
+			votes: map[string]string{
+				"user1": "8",
+				"user2": "13",
+			},
+			votingSystem:  DbsFibo,
+			expectedAvg:   13.0, // avg 10.5 equidistant, rounds up to 13
 			expectedError: false,
 		},
 	}

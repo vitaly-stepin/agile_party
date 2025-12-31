@@ -82,7 +82,7 @@ func (s *RoomService) GetRoomState(ctx context.Context, roomID string) (*dto.Roo
 		return nil, err
 	}
 
-	response := dto.FromDomainRoomState(state)
+	response := dto.FromDomainRoomState(state, r.VotingSystem)
 	response.RoomName = r.Name
 
 	return response, nil

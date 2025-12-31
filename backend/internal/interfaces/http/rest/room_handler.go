@@ -33,7 +33,7 @@ func (h *RoomHandler) NewRoom(c *fiber.Ctx) error {
 	}
 
 	if req.VotingSystem == "" {
-		req.VotingSystem = "fibonacci"
+		req.VotingSystem = "dbs_fibo"
 	}
 
 	response, err := h.roomService.NewRoom(c.Context(), &req)

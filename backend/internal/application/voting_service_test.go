@@ -156,7 +156,8 @@ func TestVotingService_RevealVotes_Success(t *testing.T) {
 	if resp.Average == nil {
 		t.Fatal("expected average, got nil")
 	}
-	expectedAvg := 6.5
+	// Votes [5,8] -> avg 6.5 -> rounds to 8.0 (equidistant, rounds up)
+	expectedAvg := 8.0
 	if *resp.Average != expectedAvg {
 		t.Errorf("expected average %.1f, got %.1f", expectedAvg, *resp.Average)
 	}
@@ -281,6 +282,47 @@ func TestVotingService_RevealVotes_StateMgrError(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error from state manager, got nil")
+	}
+}
+
+func TestVotingService_RevealVotes_AllZeroVotes(t *testing.T) {
+	testRoom, _ := room.NewRoom("Test Room", room.RoomSettings{
+		VotingSystem: room.DbsFibo,
+		AutoReveal:   false,
+	})
+
+	repo := &mockRoomRepo{
+		getFunc: func(ctx context.Context, id string) (*room.Room, error) {
+			return testRoom, nil
+		},
+	}
+	stateMgr := &mockStateManager{
+		getRoomStateFunc: func(roomID string) (*ports.LiveRoomState, error) {
+			return &ports.LiveRoomState{
+				RoomID: roomID,
+				Users:  make(map[string]*room.User),
+				Votes: map[string]string{
+					"user1": "0",
+					"user2": "0",
+					"user3": "0",
+				},
+				IsRevealed: true,
+			}, nil
+		},
+	}
+	service := NewVotingService(repo, stateMgr)
+
+	resp, err := service.RevealVotes(context.Background(), testRoom.ID)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if resp.Average == nil {
+		t.Fatal("expected average of 0.0, got nil (bug not fixed)")
+	}
+	expectedAvg := 0.0
+	if *resp.Average != expectedAvg {
+		t.Errorf("expected average %.1f, got %.1f", expectedAvg, *resp.Average)
 	}
 }
 
